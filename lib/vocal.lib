@@ -1,0 +1,12 @@
+// A sung vowel from Faust's formant-filter voice model (physmodels.lib).
+// Press to sing louder, slide to morph the vowel a -> e -> i -> o -> u.
+
+import("stdfaust.lib");
+
+voice(voiceType, freq, gate, pressure, slide) =
+    pm.SFFormantModelFofSmooth(voiceType, vowel, freq, level)
+with {
+    // The model wants its loudness already multiplied by ~25 (its own "corrFactor").
+    level = gate * (0.35 + 0.65*pressure) * 0.9 * 25 : si.lag_ud(0.15, 0.30);
+    vowel = slide * 4 : si.smooth(ba.tau2pole(0.05));
+};

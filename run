@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Build if needed, start the host, open the switcher window. Closing the window stops the host.
+#   ./run                 host + window
+#   ./run -i winds/flute  any mpe-host option is passed through (-i start instrument, -r bend range ...)
+#   NO_UI=1 ./run         host only
+cd "$(dirname "$0")" || exit 1
+make -s all || exit 1
+pkill -x mpe-host 2>/dev/null && sleep 0.5
+build/mpe-host "$@" &
+host=$!
+trap 'kill $host 2>/dev/null; wait $host 2>/dev/null' EXIT INT TERM
+if [ -n "$NO_UI" ]; then wait $host; else sleep 1; python3 ui/switcher.py; fi
