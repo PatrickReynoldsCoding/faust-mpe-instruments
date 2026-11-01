@@ -3,14 +3,15 @@ declare range "196 1300";
 import("stdfaust.lib");
 mpe = library("mpe.lib");
 bowed = library("bowed.lib")[
-    bowSpeedMin = hslider("bowSpeedMin", 0.06, 0, 1, 0.001);
+    bowSpeedMin = hslider("bowSpeedMin", 0.012, 0, 1, 0.001);
     bowSpeedMax = hslider("bowSpeedMax", 0.5, 0, 2, 0.001);
     bowForceK = hslider("bowForceK", 1.0, 0, 10, 0.001);
     bowForceLoud = hslider("bowForceLoud", 1.4, 0, 10, 0.001);
     bowPosNear = hslider("bowPosNear", 0.06, 0.01, 0.5, 0.001);
     bowPosFar = hslider("bowPosFar", 0.2, 0.01, 0.5, 0.001);
     bowPosLoud = hslider("bowPosLoud", 0.75, 0, 1, 0.001);
-    bowAttack = hslider("bowAttack", 0.035, 0.001, 1, 0.001);
+    bowStartSoft = hslider("bowStartSoft", 0.2, 0.001, 1, 0.001);
+    bowStartHard = hslider("bowStartHard", 0.015, 0.001, 1, 0.001);
     muS = hslider("muS", 0.8, 0, 2, 0.001);
     muD = hslider("muD", 0.3, 0, 2, 0.001);
     u0 = hslider("u0", 0.1, 0.001, 1, 0.001);

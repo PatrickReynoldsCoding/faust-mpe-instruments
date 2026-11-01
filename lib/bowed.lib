@@ -23,9 +23,9 @@ MAXD = 2048;                 // longest loop, samples (C2 at 48 kHz is 734)
 
 // Bow. Pressure p (0..1) is the dynamic: it sets bow speed, bow force and moves the bow a
 // little towards the bridge, as players do when they play louder.
-bowSpeedMin = 0.03;          // m/s at p = 0 with the finger down
+bowSpeedMin = 0.012;         // m/s at p = 0 with the finger down (a genuinely soft note)
 bowSpeedMax = 0.50;          // m/s at p = 1
-bowSpeedCurve = 1.0;         // speed = min + (max - min) * p^curve
+bowSpeedCurve = 1.3;         // speed = min + (max - min) * p^curve: more control at the soft end
 // Bow force (/2Z, m/s) is not set directly: like a good player, the voice keeps it inside
 // the range where the string gives clean Helmholtz motion. That range runs from about
 // 0.019*v/beta^2 to 1.76*v/beta (scanned with tools/timbre/helmholtz.py, as Schelleng's
@@ -37,7 +37,13 @@ bowForceLowExp = 0;          // force *= (bowForceLowHz/f)^bowForceLowExp (heavy
 bowPosNear  = 0.06;          // bow position (fraction of the string from the bridge), slide = 0
 bowPosFar   = 0.20;          //                                                          slide = 1
 bowPosLoud  = 1.0;           // at p = 1 the bow is this fraction of the way to the near end
-bowAttack   = 0.035;         // s, bow gets up to speed (faster when struck harder)
+// Bow start. A soft bow start takes a couple of hundred ms to speak; a hard strike speaks at
+// once. Seaboard strikes are mostly tiny (median about 3/127 before the host's x5), so the
+// start time goes with (1 - velocity)^2 and the accent with velocity^2: only a real strike
+// is fast and bitten. Pressure changes later in the note still follow quickly.
+bowStartSoft = 0.2;          // s, bow up to speed on the softest touch
+bowStartHard = 0.015;        // s, on the hardest strike
+bowAccent    = 0.8;          // extra speed and force at a hard strike, fading over 0.12 s
 bowRelease  = 0.06;          // s, bow leaves the string
 muS = 0.8; muD = 0.3; u0 = 0.1;   // friction: static, dynamic, speed scale (m/s)
 
@@ -175,22 +181,26 @@ with {
     f = freq * 2^(vib/1200);
     P = ma.SR / max(f, 30);
 
-    // Bow: speed and force follow pressure; a struck note gives a short accent.
-    accent = velocity * exp(-tNote/0.12) * 0.5;
+    // Bow: speed and force follow pressure. The bow start is a ramp of its own (see bowStartSoft),
+    // and force rises with the bow's speed so that a soft start never scratches.
+    accent = velocity*velocity * exp(-tNote/0.12) * bowAccent;
     dyn = max(pressure, 0) : si.smooth(ba.tau2pole(0.02));
     lively = (1 + lfn(2.5)*0.04) * (1 + bowJitter*lfn(13));   // a bow is never perfectly steady
-    att = bowAttack * (1.3 - velocity);
+    att = bowStartHard + (bowStartSoft - bowStartHard)*(1 - min(velocity, 1))^2;
+    st = min(1, tNote/(2*att));
+    onset = st*st*(3 - 2*st);                                // smooth S-curve, 0 -> 1 over 2*att
     posFar = bowPosNear + (bowPosFar - bowPosNear)*slide;
     drift = 1 + bowPosWander*(0.6*lfn(1.1) + 0.4*lfn(2.6));
     beta = (posFar - (posFar - bowPosNear)*bowPosLoud*dyn) * drift
          : si.smooth(ba.tau2pole(0.03)) : max(4/P) : min(0.45);
     // loudness goes as speed/position: the player keeps it steady while the bow drifts
-    speed = (bowSpeedMin + (bowSpeedMax - bowSpeedMin)*pow(dyn, bowSpeedCurve)) * lively * drift;
-    vb = gate * (speed + accent*bowSpeedMax*0.3) : si.lag_ud(att, bowRelease);
+    speed = (bowSpeedMin + (bowSpeedMax - bowSpeedMin)*pow(dyn, bowSpeedCurve)) * lively * drift * onset;
+    bowSpeed = speed + accent*bowSpeedMax*0.3;                 // a strike adds speed at once
+    vb = gate * bowSpeed : si.lag_ud(0.03, bowRelease);
     lowBoost = max(1, bowForceLowHz/max(freq, 20))^bowForceLowExp;
     FT = gate * bowForceK * lowBoost * (1 + (bowForceLoud - 1)*dyn + accent) * (1 + 1.5*bowJitter*lfn(17))
-       * 0.183 * speed / beta^1.5;
-    F = FT : si.lag_ud(att*0.5, bowRelease*0.7);
+       * 0.183 * bowSpeed / beta^1.5;
+    F = FT : si.lag_ud(0.02, bowRelease*0.7);
 
     // Loop gains for the wanted ring times (per period), finger damping after release.
     t60 = t60Low * select2(gate, fingerDamp, 1) : si.smooth(ba.tau2pole(0.05));
