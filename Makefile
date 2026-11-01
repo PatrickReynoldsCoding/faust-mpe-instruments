@@ -19,9 +19,13 @@ build/render: tools/render.cpp src/loader.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $< -ldl
 
-build/mpe-host: src/mpe-host.cpp src/loader.h
+build/room.h: src/room.dsp
 	@mkdir -p build
-	$(CXX) $(CXXFLAGS) -o $@ $< -lasound -lpthread -ldl
+	$(FAUST) -lang cpp -i -cn Room -o $@ $<
+
+build/mpe-host: src/mpe-host.cpp src/loader.h build/room.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -Ibuild -o $@ $< -lasound -lpthread -ldl
 
 test: all
 	python3 tests/test_instruments.py

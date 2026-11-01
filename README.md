@@ -22,7 +22,9 @@ it keeps the MPE stream clean (no stuck notes). Change the input with `-m <name>
 Options (`build/mpe-host -h`): `-i` start instrument, `-t` transpose in semitones (the window's
 Octave -/+ buttons change this live), `-r` pitch-bend range in semitones (default 48, the MPE
 default), `-s` touch sensitivity for strike velocity, `-m` MIDI source, `-d` ALSA audio device,
-`-p` audio buffer size, `-v` log notes and the values sent to each instrument (for debugging).
+`-p` audio buffer size, `-R` room (hall reverb on the whole mix, 0 = dry, default 0.5; the
+window's Room slider changes it live), `-v` log notes and the values sent to each instrument
+(for debugging).
 
 If every key sounds the same, the controller is probably sending notes far above the instrument's
 range (the host caps pitch at 5 kHz): use the Octave buttons, or `-t -72` for six octaves down.
@@ -38,8 +40,10 @@ range (the host caps pitch at 5 kHz): use the Octave buttons, or `-t -72` for si
       synths/   pad, fm-keys, lead
     lib/mpe.lib      the contract every instrument follows (below)
     lib/bowed.lib    shared bowed-string engine (violin, cello)
+    lib/body_*.lib   violin and cello bodies, fitted to recordings (generated, see below)
     lib/vocal.lib    shared sung-vowel engine (the voices)
-    src/             mpe-host.cpp (plays instruments), entry.cpp + loader.h (plugin loading)
+    src/             mpe-host.cpp (plays instruments), entry.cpp + loader.h (plugin loading),
+                     room.dsp (the hall reverb)
     ui/switcher.py   the window (Python + built-in Tk, nothing to install)
     tools/           offline renderer and measuring tools
     tests/           checks run on every instrument, and on the host
@@ -78,9 +82,30 @@ note that is out of tune: use it after changing an instrument.
 I could not listen while building these, so they were tuned by measuring, not by ear.
 Treat the numbers as a starting point and trust your ears over the tests.
 
-- **Bowed strings** drop to the wrong mode (an octave off) if the bow is too close to the
-  bridge on high notes, too far from it on low notes, or starts too slowly. `lib/bowed.lib`
-  and the two string files hold the limits found by scanning (`tools/scan_bow.py`).
+- **Violin and cello** are fitted to recordings of solo Bach by two concert soloists. The
+  engine (`lib/bowed.lib`) is a waveguide string with real stick-slip bow friction; a
+  "virtual player" keeps the bow force where the string gives a clean tone, so pressure and
+  slide never make it whistle or scratch. The body is 90 resonators fitted to the harmonic
+  levels of the recordings, then corrected by playing the soloist's own phrases (their pitch,
+  vibrato and dynamics) on the instrument and measuring what is still different.
+  The vibrato, the loudness balance across the range and how the tone brightens with
+  pressure are measured from the recordings too. Tools: `tools/timbre/` (see below).
 - **Flute** pitch depends on how hard you blow and where the embouchure is. Slide controls
   tone, not embouchure, for that reason. Very light blowing is a little flat, as on a real flute.
 - **Marimba**: the stock library one rings for 0.1 s, so it is rebuilt with a longer ring.
+
+## Fitting the strings to recordings (tools/timbre/)
+
+Needs a Python venv with numpy, scipy, soundfile (and torch + transformers for `clapcheck.py`),
+and reference recordings in `refs/<player>/*.wav` (48 kHz; not in the repo, `refs/` is ignored).
+
+    python refstats.py hahn          measure every recording (pitch, harmonic levels)
+    python passages.py hahn          pick single-line passages and split them into notes
+    python makebody.py violin        first body fit -> lib/body_violin.lib
+    python refit.py violin           body correction rounds, lowest notes, loudness balance
+    python evaluate.py violin --wav  scores, plus A/B files in refs/ab/ (recording vs instrument)
+    python clapcheck.py violin current   a neural audio model's opinion (CLAP embeddings)
+
+Other checks: `helmholtz.py` (where the bare string bows cleanly), `regprofile.py` (brightness
+by register), `tilt.py` (brightness against loudness), `onsets.py` (attacks and slurs),
+`amsplit.py` (vibrato shimmer), `vibstats.py` (a player's vibrato), `levelbal.py`.

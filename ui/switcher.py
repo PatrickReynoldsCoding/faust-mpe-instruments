@@ -26,13 +26,15 @@ def read_state(path=STATE_FILE):
             lines = f.read().splitlines()
     except OSError:
         return None
-    state = {"current": "", "volume": 0.8, "pid": 0, "transpose": 0, "instruments": []}
+    state = {"current": "", "volume": 0.8, "room": 0.5, "pid": 0, "transpose": 0, "instruments": []}
     for line in lines:
         key, _, value = line.partition("=")
         if key == "current":
             state["current"] = value
         elif key == "volume":
             state["volume"] = float(value or 0.8)
+        elif key == "room":
+            state["room"] = float(value or 0.5)
         elif key == "transpose":
             state["transpose"] = int(value or 0)
         elif key == "pid":
@@ -83,6 +85,8 @@ class Switcher(tk.Tk):
         self.buttons = {}
         self.shown_ids = None
         self.volume_after = None
+        self.room_after = None
+        self.synced = False
 
         ttk.Label(self, textvariable=self.status, font=("TkDefaultFont", 11, "bold")).pack(anchor="w", padx=12, pady=(10, 4))
         self.body = ttk.Frame(self)
@@ -97,6 +101,13 @@ class Switcher(tk.Tk):
         ttk.Button(octave, text="+", width=3, command=lambda: self.shift(12)).pack(side="left", padx=(2, 8))
         ttk.Label(octave, text="(shifts every key; use it if notes sound too high or too low)").pack(side="left")
         self.transpose = 0
+
+        roomrow = ttk.Frame(self)
+        roomrow.pack(fill="x", padx=12, pady=(8, 0))
+        ttk.Label(roomrow, text="Room").pack(side="left")
+        self.room = tk.DoubleVar(value=50)
+        ttk.Scale(roomrow, from_=0, to=100, variable=self.room, command=self.on_room).pack(side="left", fill="x", expand=True, padx=8)
+        ttk.Label(roomrow, text="(dry ... concert hall)").pack(side="left")
 
         bottom = ttk.Frame(self)
         bottom.pack(fill="x", padx=12, pady=10)
@@ -123,6 +134,11 @@ class Switcher(tk.Tk):
             self.after_cancel(self.volume_after)
         self.volume_after = self.after(80, lambda: self.send(f"volume {self.volume.get() / 100:.2f}"))
 
+    def on_room(self, _value):
+        if self.room_after:
+            self.after_cancel(self.room_after)
+        self.room_after = self.after(80, lambda: self.send(f"room {self.room.get() / 100:.2f}"))
+
     def rebuild(self, instruments):
         for child in self.body.winfo_children():
             child.destroy()
@@ -146,6 +162,8 @@ class Switcher(tk.Tk):
             if ids != self.shown_ids:
                 self.rebuild(state["instruments"])
                 self.shown_ids = ids
+            if not self.synced:                                         # start the sliders where the host is
+                self.volume.set(state["volume"] * 100); self.room.set(state["room"] * 100); self.synced = True
             self.transpose = state["transpose"]                       # the host is the source of truth
             self.octave_label.set(f"{self.transpose // 12:+d}")
             names = {i["id"]: i["name"] for i in state["instruments"]}

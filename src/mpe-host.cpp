@@ -8,7 +8,7 @@
 //
 // Switch instruments while playing by writing commands to the control pipe
 // (the window in ui/ does this):
-//     load strings/cello      volume 0.8      transpose -12      panic      quit
+//     load strings/cello      volume 0.8      room 0.5      transpose -12      panic      quit
 // Current state is written to a file next to the pipe, for the window to read.
 
 #include <alsa/asoundlib.h>
@@ -28,6 +28,7 @@
 #include "faust/dsp/dsp.h"
 #include "faust/gui/MapUI.h"
 #include "faust/gui/meta.h"
+#include "room.h"            // generated from src/room.dsp: the hall the instruments play in
 #include "loader.h"
 
 static const int kChannels = 16;      // MPE: channel 0 is the master, 1..15 carry notes
@@ -85,6 +86,7 @@ static std::vector<InstrumentLib> gLibs;
 static std::atomic<InstrumentSet*> gPending{nullptr};   // control thread -> audio thread
 static std::atomic<InstrumentSet*> gRetired{nullptr};   // audio thread -> control thread
 static std::atomic<float> gVolume{0.8f};
+static std::atomic<float> gRoom{0.5f};       // reverb amount, 0 = dry
 static std::string gCurrentId;
 static unsigned gSampleRate = 48000;
 
@@ -175,7 +177,8 @@ static void writeState() {
     std::string tmp = gStateFile + ".tmp";
     FILE* f = fopen(tmp.c_str(), "w");
     if (!f) return;
-    fprintf(f, "pid=%d\ncurrent=%s\nvolume=%.2f\ntranspose=%d\n", (int)getpid(), gCurrentId.c_str(), gVolume.load(), gTranspose.load());
+    fprintf(f, "pid=%d\ncurrent=%s\nvolume=%.2f\nroom=%.2f\ntranspose=%d\n", (int)getpid(), gCurrentId.c_str(), gVolume.load(),
+            gRoom.load(), gTranspose.load());
     for (const InstrumentLib& l : gLibs)
         fprintf(f, "instrument=%s\t%s\t%s\t%s\n", l.id.c_str(), l.group.c_str(), l.name.c_str(), l.description.c_str());
     fclose(f);
@@ -214,6 +217,7 @@ static void controlThread() {
             buf.erase(0, nl + 1);
             if (line.rfind("load ", 0) == 0) switchTo(line.substr(5));
             else if (line.rfind("volume ", 0) == 0) { gVolume = std::min(1.f, std::max(0.f, (float)atof(line.c_str() + 7))); writeState(); }
+            else if (line.rfind("room ", 0) == 0) { gRoom = std::min(1.f, std::max(0.f, (float)atof(line.c_str() + 5))); writeState(); }
             else if (line.rfind("transpose ", 0) == 0) { gTranspose = std::max(-96, std::min(96, atoi(line.c_str() + 10))); writeState(); }
             else if (line == "panic") gPanic = true;
             else if (line == "quit") gRun = false;
@@ -256,9 +260,10 @@ int main(int argc, char** argv) {
         else if (a == "-i") initial = next();
         else if (a == "-v") gVerbose = true;
         else if (a == "-t") gTranspose = atoi(next().c_str());
+        else if (a == "-R") gRoom = std::min(1.f, std::max(0.f, (float)atof(next().c_str())));
         else {
             fprintf(stderr, "usage: %s [-i group/name] [-b build-dir] [-d pcm] [-m midi-name] [-r bend-semitones]\n"
-                            "          [-s velocity-scale] [-p period-frames] [-t transpose-semitones] [-v]\n", argv[0]);
+                            "          [-s velocity-scale] [-p period-frames] [-t transpose-semitones] [-R room 0..1] [-v]\n", argv[0]);
             return 1;
         }
     }
@@ -335,7 +340,15 @@ int main(int argc, char** argv) {
 
     VoiceRuntime rt_[kChannels];
     std::vector<float> in(kBlock, 0.f), outL(kBlock), outR(kBlock), mixL(kBlock), mixR(kBlock), stereo(kBlock * 2);
+    std::vector<float> roomL(kBlock), roomR(kBlock);
     float* ins[1] = { in.data() };
+    Room room;
+    room.init(gSampleRate);
+    MapUI roomUI;
+    room.buildUserInterface(&roomUI);
+    FAUSTFLOAT* roomAmount = roomUI.getParamZone("amount");
+    float* roomIn[2] = { mixL.data(), mixR.data() };
+    float* roomOut[2] = { roomL.data(), roomR.data() };
 
     while (gRun) {
         if (InstrumentSet* fresh = gPending.exchange(nullptr)) {     // instrument switch
@@ -401,10 +414,12 @@ int main(int argc, char** argv) {
             if (!held) v.quietBlocks = (v.level < 3e-5f) ? v.quietBlocks + 1 : 0;
             if (!held && v.quietBlocks > quietLimit) v.sounding = false;    // fully decayed
         }
+        *roomAmount = gRoom.load();
+        room.compute(kBlock, roomIn, roomOut);
         const float vol = gVolume.load();
         for (int i = 0; i < kBlock; i++) {               // soft limiter
-            stereo[2 * i] = std::tanh(mixL[i] * vol * 1.5f) * 0.7f;
-            stereo[2 * i + 1] = std::tanh(mixR[i] * vol * 1.5f) * 0.7f;
+            stereo[2 * i] = std::tanh(roomL[i] * vol * 1.5f) * 0.7f;
+            stereo[2 * i + 1] = std::tanh(roomR[i] * vol * 1.5f) * 0.7f;
         }
         snd_pcm_sframes_t n = snd_pcm_writei(pcm, stereo.data(), kBlock);
         if (n < 0) snd_pcm_recover(pcm, (int)n, 1);

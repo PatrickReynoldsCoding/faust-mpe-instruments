@@ -60,6 +60,8 @@ for line in sys.stdin: m.send_message([int(x, 16) for x in line.split()])
 
     send_command("volume 0.5", ctl)
     check("volume command is reflected", wait_for(lambda: abs((read_state(state_file) or {}).get("volume", 0) - 0.5) < 0.01))
+    send_command("room 0.2", ctl)
+    check("room command is applied", wait_for(lambda: abs((read_state(state_file) or {}).get("room", -1) - 0.2) < 1e-6))
     before = (read_state(state_file) or {}).get("current")
     send_command("load no/such-instrument", ctl)
     time.sleep(0.4)

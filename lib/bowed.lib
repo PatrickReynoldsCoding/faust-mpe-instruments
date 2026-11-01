@@ -1,47 +1,250 @@
-// A bowed-string voice built from Faust's physical-model parts (physmodels.lib).
+// A bowed string: a digital waveguide string played by a bow with real stick-slip friction,
+// a body response fitted to recordings, sympathetic open strings and a little life
+// (bow noise, natural vibrato). The violin and cello files only set the numbers, e.g.
 //
-// Pressure drives bow speed and force, slide moves the bow towards the bridge
-// or the fingerboard. The instrument files only choose the numbers.
+//     bowed = library("bowed.lib")[ openStrings = (196, 293.66, 440, 659.26); ... ];
+//     process = bowed.voice(mpe.freq, mpe.gate, mpe.pressure, mpe.slide, mpe.velocity);
+//
+// How it works (velocities in m/s):
+//   - The string is two delay loops, bow-to-bridge-and-back and bow-to-finger-and-back,
+//     each closed by a lossy reflection (a gain and a one-pole lowpass).
+//   - At the bow the string either sticks to the bow hair (moves with it) or slips, with
+//     hyperbolic friction mu(u) = muD + (muS - muD) * u0 / (u0 + |u|). Which one depends on
+//     the previous sample too (hysteresis), as in McIntyre, Schumacher & Woodhouse (1983).
+//     Stick-slip settles into Helmholtz motion: the bridge feels a sawtooth.
+//   - The sawtooth goes through the body: parallel resonators fitted to the harmonic
+//     levels of the reference recordings (tools/timbre/bodyfit.py).
 
 import("stdfaust.lib");
 
-voice(freq, gate, pressure, slide,
-      body1, body2, body3,            // body resonances (Hz)
-      velBase, velScale,              // bow speed  = velBase + velScale*sqrt(pressure)
-      pressBase, pressScale,          // bow force  = pressBase + pressScale*pressure
-      posMin, posRange,               // bow position = posMin + posRange*slide
-      attack, release) =            // how fast the bow gets up to speed / lifts (s)
-    pm.endChain(pm.chain(
-        pm.violinNuts :
-        seg(len*pos) :
-        pm.violinBow(press, vel) :
-        seg(len*(1-pos)) :
-        pm.violinBridge :
-        body :
-        pm.out)) * 0.5
+//---------------------------------- settings (override per instrument) ----------------------
+
+MAXD = 2048;                 // longest loop, samples (C2 at 48 kHz is 734)
+
+// Bow. Pressure p (0..1) is the dynamic: it sets bow speed, bow force and moves the bow a
+// little towards the bridge, as players do when they play louder.
+bowSpeedMin = 0.03;          // m/s at p = 0 with the finger down
+bowSpeedMax = 0.50;          // m/s at p = 1
+bowSpeedCurve = 1.0;         // speed = min + (max - min) * p^curve
+// Bow force (/2Z, m/s) is not set directly: like a good player, the voice keeps it inside
+// the range where the string gives clean Helmholtz motion. That range runs from about
+// 0.019*v/beta^2 to 1.76*v/beta (scanned with tools/timbre/helmholtz.py, as Schelleng's
+// diagram predicts); the voice uses bowForceK times the geometric middle of it.
+bowForceK = 1.0;
+bowForceLoud = 1.4;          // at p = 1 press this much harder (a bit more edge when loud)
+bowForceLowHz = 100;         // below this pitch the clean range moves to higher force:
+bowForceLowExp = 0;          // force *= (bowForceLowHz/f)^bowForceLowExp (heavy low strings)
+bowPosNear  = 0.06;          // bow position (fraction of the string from the bridge), slide = 0
+bowPosFar   = 0.20;          //                                                          slide = 1
+bowPosLoud  = 1.0;           // at p = 1 the bow is this fraction of the way to the near end
+bowAttack   = 0.035;         // s, bow gets up to speed (faster when struck harder)
+bowRelease  = 0.06;          // s, bow leaves the string
+muS = 0.8; muD = 0.3; u0 = 0.1;   // friction: static, dynamic, speed scale (m/s)
+
+// String losses: how long harmonics ring (T60, s) at low and high frequency.
+t60Low  = 1.5;               // stopped string, low harmonics
+t60High = 0.1;               //                 near 6 kHz, for a note at 440 Hz
+t60HighSlope = 1.25;         // t60High grows as (f/440)^slope: 1 keeps the same brightness
+                             // per harmonic number at every pitch, more makes high notes brighter
+bowPosWander = 0.3;          // the bow drifts this fraction of beta (no bow stays put), which
+                             // also fills in the missing harmonics at multiples of 1/beta
+fingerDamp = 0.5;            // after release the finger lets go: T60 multiplier
+
+// Noise: friction jitter (fraction of muS) and noise injected at the bow (fraction of
+// bow speed), as rosin and hair do.
+frictionNoise = 0.03;
+bowNoise = 0.02;
+
+// The player's ear. A hard-pressed string goes flat (the bow holds it a little longer each
+// period); a player hears it and moves the finger. The voice times the string's slips (one
+// per period in Helmholtz motion), compares that period with the wanted one and corrects the
+// string length over earTau seconds, by at most earRange (natural log, 0.06 = 100 cents).
+earTau = 0.15;
+earRange = 0;                // off for now: the slip timing is wrong when the string slips more than once a period
+debugStuck = 0;              // 1: output the stick/slip state instead of sound (analysis tools)
+
+// Sympathetic open strings (Hz) and how strongly the bridge drives them.
+openStrings = (196, 293.66, 440, 659.26);
+sympathy = 0.002;
+sympT60 = 3.0;
+
+// Vibrato added by the instrument when the player does not make their own.
+vibRate = 6.4;               // Hz
+vibCents = 16;               // cents, peak (half of peak-to-peak)
+vibDelay = 0.08;             // s after the note starts
+vibRise = 0.15;              // s to full depth
+vibRateWander = 0.09;        // the rate drifts this fraction
+vibDepthWander = 0.45;       // and the depth this much, cycle to cycle (measured on recordings)
+
+// Bow arm: speed and force are never perfectly steady (hand, hair, bow bounce), 10-20 Hz.
+bowJitter = 0.08;
+
+// Digging in makes the tone more brilliant (a real bow's width and the string's twisting round
+// off the Helmholtz corner less at high force; this model has neither). Upper harmonics rise by
+// brightLoud dB from p = 0 to p = 1, centred on brightMid.
+brightLoud = 0;
+brightHz = 1500;
+brightMid = 0.35;            // the pressure at which the shelf is flat (typical playing)
+
+// Loudness balance across the range (dB at these pitches, straight lines between them in
+// log frequency, flat outside), so that equal pressure gives about equal loudness, as a player
+// would make it. Measured with tools/timbre/levelbal.py.
+levelPoints = (100, 10000);
+levelDb = (0, 0);
+
+// Body: replaced by the instrument file with a fitted filter.
+body = _;
+// The fitted body is smooth at the scale of a vibrato (about 1%); a real body has many more,
+// sharper modes there. A small feedback delay network adds that fine detail and the body's
+// short ring.
+ringMix = 0.8;
+ringT60 = 0.12;              // s
+ringHP = 1000;               // Hz, the low body modes are already in the fitted filter
+ringLP = 6000;               // Hz, the ring is duller than the direct sound
+outGain = 1.0;
+
+//---------------------------------- friction junction -------------------------------------
+// vh: string velocity at the bow without the bow (sum of the two incoming waves)
+// vb: bow velocity; F: bow force / 2Z (m/s), so the string sticks while |vb - vh| <= muS*F
+// Returns delta (added to both outgoing waves) and whether the string is now stuck.
+friction(mus, mud, vb, F, vh, wasStuck) = delta, stuck
 with {
-    maxLen = 8;                         // allows notes down to ~21 Hz
-    seg(l) = pm.stringSegment(maxLen, l);
+    dh = vb - vh;
+    s = (dh >= 0) * 2 - 1;
+    D = abs(dh);
+    // slipping: (D - u)(u0 + u) = F*(mud*(u0 + u) + (mus - mud)*u0), u = slip speed > 0
+    b = D - u0 - F*mud;
+    c = u0*(D - F*mus);
+    disc = b*b + 4*c;
+    u = 0.5*(b + sqrt(max(disc, 0)));
+    canSlip = (disc >= 0) & (u > 0);
+    stickOk = D <= F*mus;
+    stuck = select2(wasStuck, 1 - canSlip, stickOk);
+    delta = select2(stuck, s*(D - u), dh);
+};
 
-    // The nut, bridge and body filters add a fixed delay to the loop (measured,
-    // about 12 samples). Take it off the period so the note lands on pitch.
-    loopDelay = 12.1 / ma.SR;
-    len = pm.f2l(1.0 / max(1.0/freq - loopDelay, 1.0/4000));
-
-    vel   = gate * (velBase + velScale*sqrt(pressure)) : si.lag_ud(attack, release);
-    press = pressBase + pressScale*pressure : si.smooth(ba.tau2pole(0.03));
-    // Bow position as a fraction of the string. On high notes the string is short, and a bow
-    // very near the bridge leaves a segment of only a few samples, which the delay line
-    // cannot model (the note drops its fundamental or goes flat). Keep each segment at
-    // least ~9 samples long.
-    minPos = 9 * freq / ma.SR;
-    pos   = max(posMin + posRange*slide, minPos) : min(0.45) : si.smooth(ba.tau2pole(0.03));
-
-    // Three resonances: air mode, main wood mode, and the "bridge hill" in the highs.
-    body = (_, bodyOut, _)
+//---------------------------------- the string ---------------------------------------------
+// P: period in samples, beta: bow position, vb: bow speed, F: bow force/2Z,
+// gB/aB, gN/aN: loop gain and lowpass coefficient of the bridge and finger reflections,
+// noise: injected bow noise (m/s), mus: static friction (with jitter).
+// Outputs: the wave arriving at the bridge (proportional to the force on it), and whether the
+// string is stuck to the bow (1) or slipping (0).
+bowedString(P, beta, vb, F, gB, aB, gN, aN, noise, mus) = loop ~ (_, _, _) : (!, !, !, _, _)
+with {
+    w = 2*ma.PI/P;
+    lpDelay(a) = atan2(a*sin(w), 1 - a*cos(w))/w;          // phase delay of the lowpass at f0
+    dB = max(beta*P - 1 - lpDelay(aB), 2);
+    dN = max((1 - beta)*P - 1 - lpDelay(aN), 2);
+    refl(g, a) = *(-g*(1 - a)) : + ~ *(a);
+    loop(bIn, nIn, st) = (toB : de.fdelay4(MAXD, dB) : refl(gB, aB)),     // next bIn
+                         (toN : de.fdelay4(MAXD, dN) : refl(gN, aN)),     // next nIn
+                         stuck, bIn, stuck
     with {
-        bodyOut = _ <: (fi.resonbp(body1, 3,   0.7),
-                        fi.resonbp(body2, 3,   0.8),
-                        fi.resonbp(body3, 1.5, 0.5)) :> _;
+        vh = bIn + nIn;
+        j = friction(mus, muD, vb, F, vh, st);
+        delta = (j : _, !) + noise;
+        stuck = j : !, _;
+        toB = nIn + delta;
+        toN = bIn + delta;
     };
+};
+
+//---------------------------------- the whole voice ----------------------------------------
+voice(freq, gate, pressure, slide, velocity) = out
+with {
+    note = gate > gate';
+    tNote = (+(1) : *(1 - note)) ~ _ : /(ma.SR);           // seconds since the note started
+
+    // Vibrato: fades in after vibDelay, rate wanders a little; stays out of the way when the
+    // player is already moving the pitch (their own vibrato or a slide).
+    seed = int(freq*7919 + velocity*104729 + slide*1299709);
+    nz = (*(1103515245) + 12345 + note*seed : int) ~ _ : /(2147483647.0);
+    // slow random wander, about -1..1. (Not fi.lowpass: a 2nd-order section at ~1 Hz is
+    // numerically unstable in single precision at 48 kHz. One-pole smoothers are safe.)
+    lfn(rate) = nz : ba.sAndH(os.lf_imptrain(rate)) : sm : sm : *(1.6)
+    with { sm = si.smooth(ba.tau2pole(0.3/rate)); };
+
+    lf = log(max(freq, 30));
+    playerMove = lf - (lf : si.smooth(ba.tau2pole(0.25))) : abs : si.smooth(ba.tau2pole(0.15));
+    ownVib = playerMove * 1731 > 4;                         // > ~4 cents of movement
+    duck = ownVib : si.smooth(ba.tau2pole(0.2));
+    vibEnv = max(0, min(1, (tNote - vibDelay)/vibRise)) * gate * (1 - duck);
+    wander = 1 + vibRateWander*lfn(1.5);
+    vibPh = (+(vibRate*wander/ma.SR) : ma.frac) ~ _;
+    vib = vibCents*vibEnv*max(0, 1 + vibDepthWander*lfn(3))*sin(2*ma.PI*vibPh);
+    f = freq * 2^(vib/1200);
+    P = ma.SR / max(f, 30);
+
+    // Bow: speed and force follow pressure; a struck note gives a short accent.
+    accent = velocity * exp(-tNote/0.12) * 0.5;
+    dyn = max(pressure, 0) : si.smooth(ba.tau2pole(0.02));
+    lively = (1 + lfn(2.5)*0.04) * (1 + bowJitter*lfn(13));   // a bow is never perfectly steady
+    att = bowAttack * (1.3 - velocity);
+    posFar = bowPosNear + (bowPosFar - bowPosNear)*slide;
+    drift = 1 + bowPosWander*(0.6*lfn(1.1) + 0.4*lfn(2.6));
+    beta = (posFar - (posFar - bowPosNear)*bowPosLoud*dyn) * drift
+         : si.smooth(ba.tau2pole(0.03)) : max(4/P) : min(0.45);
+    // loudness goes as speed/position: the player keeps it steady while the bow drifts
+    speed = (bowSpeedMin + (bowSpeedMax - bowSpeedMin)*pow(dyn, bowSpeedCurve)) * lively * drift;
+    vb = gate * (speed + accent*bowSpeedMax*0.3) : si.lag_ud(att, bowRelease);
+    lowBoost = max(1, bowForceLowHz/max(freq, 20))^bowForceLowExp;
+    FT = gate * bowForceK * lowBoost * (1 + (bowForceLoud - 1)*dyn + accent) * (1 + 1.5*bowJitter*lfn(17))
+       * 0.183 * speed / beta^1.5;
+    F = FT : si.lag_ud(att*0.5, bowRelease*0.7);
+
+    // Loop gains for the wanted ring times (per period), finger damping after release.
+    t60 = t60Low * select2(gate, fingerDamp, 1) : si.smooth(ba.tau2pole(0.05));
+    fl = max(f, 30);
+    g = 10^(-3/(fl*t60));
+    // bridge lowpass coefficient so that a harmonic near 6 kHz rings for t60High:
+    // solve (1-a)^2 / (1 - 2a cos w + a^2) = r^2 for a
+    t60H = t60High * (fl/440)^t60HighSlope;
+    r2 = (10^(-3/(fl*t60H)) / g)^2 : min(0.999999);
+    c6 = cos(2*ma.PI*6000/ma.SR);
+    aB = ((1 - r2*c6) - sqrt(max((1 - r2*c6)^2 - (1 - r2)^2, 0))) / (1 - r2) : min(0.95) : max(0);
+    gB = sqrt(g); gN = sqrt(g);
+    aN = 0.05;
+
+    fnoise = nz : fi.lowpass(1, 3000) : *(frictionNoise*muS);
+    bnoise = nz : fi.highpass(1, 300) : *(bowNoise*vb);
+    played(c) = bowedString(P*exp(-c), beta, vb, F, gB, aB, gN, aN, bnoise, muS + fnoise) : ear(c);
+    strs = played ~ _ : !, _, _;
+    str = strs : _, !;
+    stuckNow = strs : !, _;
+    ear(c, audio, stuck) = c + ok*k*log(r) : max(-earRange) : min(earRange), audio, stuck
+    with {
+        held = (+(1) : *(stuck)) ~ _;                       // samples stuck so far
+        slip = (stuck' > 0.5) & (stuck < 0.5) & (held' > 0.3*P);    // the one real slip of a period
+        since = (+(1) : *(1 - slip)) ~ _;                   // samples since the last slip
+        r = (since' + 1)/P;
+        ok = slip & (r > 0.85) & (r < 1.15);                 // ignore attacks and multiple slips
+        k = 1 - exp(-P/(ma.SR*earTau));
+    };
+
+    symp = par(i, ba.count(openStrings), openString(ba.take(i + 1, openStrings))) :> _;
+    openString(fo) = (+ : de.fdelay2(MAXD, ma.SR/fo - 2.5)) ~ (*(10^(-3/(fo*sympT60))) : fi.lowpass(1, 5000));
+    bridge = str <: _, (*(sympathy) <: par(i, ba.count(openStrings), _) : symp) :> _;
+
+    sound = bridge : fi.dcblocker : fi.high_shelf1(brightLoud*(dyn - brightMid), brightHz) : body : ring
+        : *(outGain * ba.db2linear(levelAt(freq)));
+    out = select2(debugStuck, sound, stuckNow);              // debugStuck: for tools/timbre only
+};
+
+levelAt(f) = sum(i, n - 1, seg(i))
+with {
+    n = ba.count(levelPoints);
+    xp(i) = log(ba.take(i + 1, levelPoints))/log(2);
+    yp(i) = ba.take(i + 1, levelDb);
+    x = log(max(f, 20))/log(2) : max(xp(0)) : min(xp(n - 1) - 1e-4);
+    seg(i) = (x >= xp(i)) * (x < xp(i + 1)) * (yp(i) + (yp(i + 1) - yp(i))*(x - xp(i))/(xp(i + 1) - xp(i)));
+};
+
+// Four delay lines (1.1 to 3.1 ms) mixed by a Householder matrix: dense modes, ringing ringT60.
+ring = _ <: _, (fdn :> *(ringMix/2)) :> _
+with {
+    dl(i) = ba.take(i + 1, (53, 82, 110, 149));
+    gi(i) = 10^(-3*dl(i)/(ma.SR*ringT60));
+    house = si.bus(4) <: si.bus(4), (si.bus(4) :> *(-0.5) <: si.bus(4)) : ro.interleave(4, 2) : par(i, 4, +);
+    loop = ro.interleave(4, 2) : par(i, 4, + : de.delay(256, dl(i)) : *(gi(i)) : fi.lowpass(1, ringLP)) : house;
+    fdn = fi.highpass(2, ringHP) <: (loop ~ si.bus(4));
 };

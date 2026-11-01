@@ -1,0 +1,47 @@
+// A bowed-string voice built from Faust's physical-model parts (physmodels.lib).
+//
+// Pressure drives bow speed and force, slide moves the bow towards the bridge
+// or the fingerboard. The instrument files only choose the numbers.
+
+import("stdfaust.lib");
+
+voice(freq, gate, pressure, slide,
+      body1, body2, body3,            // body resonances (Hz)
+      velBase, velScale,              // bow speed  = velBase + velScale*sqrt(pressure)
+      pressBase, pressScale,          // bow force  = pressBase + pressScale*pressure
+      posMin, posRange,               // bow position = posMin + posRange*slide
+      attack, release) =            // how fast the bow gets up to speed / lifts (s)
+    pm.endChain(pm.chain(
+        pm.violinNuts :
+        seg(len*pos) :
+        pm.violinBow(press, vel) :
+        seg(len*(1-pos)) :
+        pm.violinBridge :
+        body :
+        pm.out)) * 0.5
+with {
+    maxLen = 8;                         // allows notes down to ~21 Hz
+    seg(l) = pm.stringSegment(maxLen, l);
+
+    // The nut, bridge and body filters add a fixed delay to the loop (measured,
+    // about 12 samples). Take it off the period so the note lands on pitch.
+    loopDelay = 12.1 / ma.SR;
+    len = pm.f2l(1.0 / max(1.0/freq - loopDelay, 1.0/4000));
+
+    vel   = gate * (velBase + velScale*sqrt(pressure)) : si.lag_ud(attack, release);
+    press = pressBase + pressScale*pressure : si.smooth(ba.tau2pole(0.03));
+    // Bow position as a fraction of the string. On high notes the string is short, and a bow
+    // very near the bridge leaves a segment of only a few samples, which the delay line
+    // cannot model (the note drops its fundamental or goes flat). Keep each segment at
+    // least ~9 samples long.
+    minPos = 9 * freq / ma.SR;
+    pos   = max(posMin + posRange*slide, minPos) : min(0.45) : si.smooth(ba.tau2pole(0.03));
+
+    // Three resonances: air mode, main wood mode, and the "bridge hill" in the highs.
+    body = (_, bodyOut, _)
+    with {
+        bodyOut = _ <: (fi.resonbp(body1, 3,   0.7),
+                        fi.resonbp(body2, 3,   0.8),
+                        fi.resonbp(body3, 1.5, 0.5)) :> _;
+    };
+};
