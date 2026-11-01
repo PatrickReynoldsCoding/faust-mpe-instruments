@@ -30,7 +30,6 @@ bowed = library("bowed.lib")[
     vibRate = hslider("vibRate", 5.9, 0, 12, 0.01);
     brightLoud = hslider("brightLoud", -3, -20, 20, 0.01);
     debugStuck = hslider("debugStuck", 0, 0, 1, 1);
-    earRange = hslider("earRange", 0.06, 0, 0.2, 0.001);
     registerTilt = hslider("registerTilt", 6.5, -20, 20, 0.01);
     registerRef = hslider("registerRef", 160, 20, 2000, 1);
     bowJitter = hslider("bowJitter", 0.08, 0, 0.5, 0.001);
