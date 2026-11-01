@@ -8,12 +8,16 @@ LIBS    := $(wildcard lib/*.lib)
 
 all: $(SOS) build/mpe-host build/render
 
+# An instrument that defines `post` (the stage all its voices share) gets it compiled too.
 build/%.cpp: instruments/%.dsp $(LIBS)
 	@mkdir -p $(dir $@)
 	$(FAUST) -I lib -lang cpp -i -cn Instrument -o $@ $<
+	@if grep -qE '^post *=' $<; then $(FAUST) -I lib -lang cpp -i -pn post -cn InstrumentPost -o $(@:.cpp=.post.cpp) $<; \
+	else rm -f $(@:.cpp=.post.cpp); fi
 
 build/%.so: build/%.cpp src/entry.cpp
-	$(CXX) $(CXXFLAGS) -w -shared -fPIC -DGEN='"$(abspath $<)"' -o $@ src/entry.cpp
+	$(CXX) $(CXXFLAGS) -w -shared -fPIC -DGEN='"$(abspath $<)"' \
+	  $$(test -f $(<:.cpp=.post.cpp) && echo -DGENPOST='"$(abspath $(<:.cpp=.post.cpp))"') -o $@ src/entry.cpp
 
 build/render: tools/render.cpp src/loader.h
 	@mkdir -p build

@@ -2,6 +2,7 @@
 //   render <instrument.so> <out.f32> freq pressure slide velocity [hold_s] [total_s]
 // Drives the instrument exactly as the host does: gate 0 -> 1 on a cleared
 // instrument, controls updated every 64 samples, gate -> 0 after hold_s.
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -37,6 +38,14 @@ int main(int argc, char** argv) {
     FAUSTFLOAT *zFreq = zone("freq"), *zPress = zone("pressure"), *zSlide = zone("slide"),
                *zVel = zone("velocity"), *zGate = zone("gate");
     for (auto& e : extra) if (FAUSTFLOAT* z = ui.getParamZone(e.first.c_str())) *z = e.second;
+    // The stage all voices share (lib/mpe.lib), if the instrument has one.
+    dsp* post = lib.createPost ? lib.createPost() : nullptr;
+    MapUI postUI;
+    if (post) {
+        post->init(sr); post->buildUserInterface(&postUI); post->instanceClear();
+        for (auto& e : extra) if (FAUSTFLOAT* z = postUI.getParamZone(e.first.c_str())) *z = e.second;
+    }
+    std::vector<float> pin(blk), pl(blk), pr(blk);
     std::vector<float> out(n), in(blk, 0.f);
     float* ins[1] = { in.data() };
     for (int i = 0; i < n; i += blk) {
@@ -56,6 +65,12 @@ int main(int argc, char** argv) {
             float s = 0;
             for (int c = 0; c < nout; c++) s += bufs[c][k];
             out[i + k] = s / nout;
+        }
+        if (post) {
+            std::copy(out.begin() + i, out.begin() + i + blk, pin.begin());
+            float* pi[1] = { pin.data() }; float* po[2] = { pl.data(), pr.data() };
+            post->compute(blk, pi, po);
+            for (int k = 0; k < blk; k++) out[i + k] = post->getNumOutputs() > 1 ? 0.5f * (pl[k] + pr[k]) : pl[k];
         }
     }
     FILE* f = fopen(argv[2], "wb");

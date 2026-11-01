@@ -14,6 +14,7 @@ struct InstrumentLib {
     std::string name;         // "Cello" (from `declare name`)
     std::string description;
     dsp* (*create)() = nullptr;
+    dsp* (*createPost)() = nullptr;      // optional: the stage all voices share (null: none)
 };
 
 inline std::vector<std::string> listDir(const std::string& path) {
@@ -41,6 +42,8 @@ inline bool loadInstrument(const std::string& soPath, const std::string& group,
     out.name = meta("name")[0] ? meta("name") : stem;
     out.description = meta("description");
     out.create = create;
+    auto post = (dsp * (*)())dlsym(h, "mpe_create_post");
+    out.createPost = post && post() ? post : nullptr;   // (the probe copy is leaked once, it is tiny to keep)
     return true;
 }
 

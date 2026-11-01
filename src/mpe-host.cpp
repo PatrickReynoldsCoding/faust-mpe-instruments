@@ -66,7 +66,15 @@ struct InstrumentSet {
     const InstrumentLib* lib;
     int outputs = 1;
     Slot slots[kChannels];
+    dsp* post = nullptr;            // the stage all voices share (body, ...), if the instrument has one
+    int postOutputs = 1;
+    int postQuiet = 0;              // blocks of silence in and out of post (it is skipped when long)
     InstrumentSet(const InstrumentLib* l, int sr) : lib(l) {
+        if (lib->createPost) {
+            post = lib->createPost();
+            post->init(sr);
+            postOutputs = std::min(2, post->getNumOutputs());
+        }
         for (int ch = 1; ch < kChannels; ch++) {
             Slot& s = slots[ch];
             s.d = lib->create();
@@ -81,7 +89,7 @@ struct InstrumentSet {
             outputs = std::min(2, s.d->getNumOutputs());
         }
     }
-    ~InstrumentSet() { for (Slot& s : slots) delete s.d; }
+    ~InstrumentSet() { for (Slot& s : slots) delete s.d; delete post; }
 };
 
 static std::vector<InstrumentLib> gLibs;
@@ -345,7 +353,8 @@ int main(int argc, char** argv) {
 
     VoiceRuntime rt_[kChannels];
     std::vector<float> in(kBlock, 0.f), outL(kBlock), outR(kBlock), mixL(kBlock), mixR(kBlock), stereo(kBlock * 2);
-    std::vector<float> roomL(kBlock), roomR(kBlock);
+    std::vector<float> roomL(kBlock), roomR(kBlock), postL(kBlock), postR(kBlock);
+    const int postQuietLimit = int(1.0f / dt);      // after 1 s of silence through it, skip post
     float* ins[1] = { in.data() };
     Room room;
     room.init(gSampleRate);
@@ -423,6 +432,23 @@ int main(int argc, char** argv) {
             v.level = smoothTo(v.level, std::sqrt(e / kBlock), 0.2f);
             if (!held) v.quietBlocks = (v.level < 3e-5f) ? v.quietBlocks + 1 : 0;
             if (!held && v.quietBlocks > quietLimit) v.sounding = false;    // fully decayed
+        }
+        if (cur->post) {                                 // one body for all the notes
+            float in = 0;
+            for (int i = 0; i < kBlock; i++) in += mixL[i] * mixL[i];
+            if (in > 1e-14f || cur->postQuiet < postQuietLimit) {
+                float* pin[1] = { mixL.data() };
+                float* pout[2] = { postL.data(), postR.data() };
+                cur->post->compute(kBlock, pin, pout);
+                float out = 0;
+                for (int i = 0; i < kBlock; i++) out += postL[i] * postL[i];
+                cur->postQuiet = (in > 1e-14f || out > 1e-12f) ? 0 : cur->postQuiet + 1;
+                const float* r = cur->postOutputs > 1 ? postR.data() : postL.data();
+                for (int i = 0; i < kBlock; i++) { mixL[i] = postL[i]; mixR[i] = r[i]; }
+            } else {
+                std::fill(mixL.begin(), mixL.end(), 0.f);
+                std::fill(mixR.begin(), mixR.end(), 0.f);
+            }
         }
         *roomAmount = gRoom.load();
         room.compute(kBlock, roomIn, roomOut);

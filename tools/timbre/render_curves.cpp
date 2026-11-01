@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <algorithm>
 #include <vector>
 #include "faust/gui/MapUI.h"
 #include "faust/gui/meta.h"
@@ -45,6 +46,21 @@ int main(int argc, char** argv) {
                 if (FAUSTFLOAT* z = v.ui.getParamZone(a.substr(0, eq))) *z = (float)atof(a.c_str() + eq + 1);
         }
     }
+    // The stage all voices share (body etc.), if the instrument has one: run on their sum.
+    dsp* post = lib.createPost ? lib.createPost() : nullptr;
+    MapUI postUI;
+    if (post) {
+        post->init(sr);
+        post->buildUserInterface(&postUI);
+        post->instanceClear();
+        for (int i = 5; i < argc; i++) {
+            std::string a = argv[i];
+            size_t eq = a.find('=');
+            if (eq != std::string::npos)
+                if (FAUSTFLOAT* z = postUI.getParamZone(a.substr(0, eq))) *z = (float)atof(a.c_str() + eq + 1);
+        }
+    }
+    std::vector<float> sum(blk), pl(blk), pr(blk);
     int nout = vs[0].d->getNumOutputs();
     std::vector<std::vector<float>> bufs(nout, std::vector<float>(blk));
     std::vector<float*> outs(nout);
@@ -53,6 +69,7 @@ int main(int argc, char** argv) {
     float* ins[1] = { in.data() };
     std::vector<float> out(nblocks * blk, 0.f);
     for (size_t b = 0; b < nblocks; b++) {
+        std::fill(sum.begin(), sum.end(), 0.f);
         for (int k = 0; k < nv; k++) {
             V& v = vs[k];
             const float* c = &ctl[(b * nv + k) * NC];
@@ -68,8 +85,17 @@ int main(int argc, char** argv) {
             for (int i = 0; i < blk; i++) {
                 float s = 0;
                 for (int ch = 0; ch < nout; ch++) s += bufs[ch][i];
-                out[b * blk + i] += s / nout;
+                sum[i] += s / nout;
             }
+        }
+        if (post) {
+            float* pin[1] = { sum.data() };
+            float* pout[2] = { pl.data(), pr.data() };
+            post->compute(blk, pin, pout);
+            int pn = post->getNumOutputs();
+            for (int i = 0; i < blk; i++) out[b * blk + i] = pn > 1 ? 0.5f * (pl[i] + pr[i]) : pl[i];
+        } else {
+            for (int i = 0; i < blk; i++) out[b * blk + i] = sum[i];
         }
     }
     FILE* f = fopen(argv[4], "wb");

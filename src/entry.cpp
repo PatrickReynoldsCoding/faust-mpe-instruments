@@ -1,5 +1,6 @@
 // Wraps one generated Faust instrument as a loadable plugin (.so).
-// Built once per instruments/<group>/<name>.dsp, with GEN = the generated C++.
+// Built once per instruments/<group>/<name>.dsp, with GEN = the generated C++, and GENPOST =
+// the generated `post` (class InstrumentPost) when the instrument has one.
 #include <map>
 #include <string>
 #include "faust/dsp/dsp.h"
@@ -9,10 +10,20 @@
 #error "build with -DGEN='\"path/to/generated.cpp\"'"
 #endif
 #include GEN
+#ifdef GENPOST
+#include GENPOST
+#endif
 
 extern "C" {
 
 dsp* mpe_create() { return new Instrument(); }
+
+// The stage every voice shares (lib/mpe.lib), or null if the instrument has none.
+#ifdef GENPOST
+dsp* mpe_create_post() { return new InstrumentPost(); }
+#else
+dsp* mpe_create_post() { return nullptr; }
+#endif
 
 // Value of a `declare <key> "<value>";` line in the .dsp, or "" if absent.
 const char* mpe_meta(const char* key) {

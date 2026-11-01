@@ -16,9 +16,14 @@ def build(dsp):
     libs = [os.path.join(ROOT, "lib", f) for f in os.listdir(os.path.join(ROOT, "lib"))]
     newest = max(os.path.getmtime(p) for p in [dsp] + libs)
     if not os.path.exists(so) or os.path.getmtime(so) < newest:
-        subprocess.run(["faust", "-I", os.path.join(ROOT, "lib"), "-I", os.path.dirname(dsp), "-lang", "cpp", "-i",
-                        "-cn", "Instrument", "-o", cpp, dsp], check=True)
-        subprocess.run(["g++", "-O2", "-std=c++17", "-w", "-shared", "-fPIC", f'-DGEN="{cpp}"', "-o", so,
+        inc = ["-I", os.path.join(ROOT, "lib"), "-I", os.path.dirname(dsp)]
+        subprocess.run(["faust", *inc, "-lang", "cpp", "-i", "-cn", "Instrument", "-o", cpp, dsp], check=True)
+        defs = [f'-DGEN="{cpp}"']
+        if any(l.startswith("post") and "=" in l for l in open(dsp)):       # the stage all voices share
+            pcpp = cpp[:-4] + ".post.cpp"
+            subprocess.run(["faust", *inc, "-lang", "cpp", "-i", "-pn", "post", "-cn", "InstrumentPost", "-o", pcpp, dsp], check=True)
+            defs.append(f'-DGENPOST="{pcpp}"')
+        subprocess.run(["g++", "-O2", "-std=c++17", "-w", "-shared", "-fPIC", *defs, "-o", so,
                         os.path.join(ROOT, "src", "entry.cpp")], check=True)
     return so
 

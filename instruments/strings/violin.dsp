@@ -15,3 +15,4 @@ bowed = library("bowed.lib")[
 ];
 
 process = bowed.voice(mpe.freq, mpe.gate, mpe.pressure, mpe.slide, mpe.velocity, mpe.legato);
+post = bowed.post;                                  // body, ring, sympathetic strings: once for all notes

@@ -4,6 +4,7 @@
 //
 //     bowed = library("bowed.lib")[ openStrings = (196, 293.66, 440, 659.26); ... ];
 //     process = bowed.voice(mpe.freq, mpe.gate, mpe.pressure, mpe.slide, mpe.velocity, mpe.legato);
+//     post = bowed.post;      // body, ring and sympathetic strings, once for all the notes
 //
 // How it works (velocities in m/s):
 //   - The string is two delay loops, bow-to-bridge-and-back and bow-to-finger-and-back,
@@ -32,6 +33,8 @@ bowSpeedCurve = 1.3;         // speed = min + (max - min) * p^curve: more contro
 // diagram predicts); the voice uses bowForceK times the geometric middle of it.
 bowForceK = 1.0;
 bowForceLoud = 1.4;          // at p = 1 press this much harder (a bit more edge when loud)
+bowForceSoft = 1.5;          // at p = 0 press this much harder, fading out by p = 0.5: a light,
+                             // slow bow needs relatively more weight to stay clean
 bowForceLowHz = 100;         // below this pitch the clean range moves to higher force:
 bowForceLowExp = 0;          // force *= (bowForceLowHz/f)^bowForceLowExp (heavy low strings)
 bowPosNear  = 0.06;          // bow position (fraction of the string from the bridge), slide = 0
@@ -48,6 +51,10 @@ bowAccent    = 0.8;          // extra speed and force at a hard strike, fading o
 // without an accent.
 bowRelease  = 0.06;          // s, bow leaves the string
 muS = 0.8; muD = 0.3; u0 = 0.1;   // friction: static, dynamic, speed scale (m/s)
+// Below this bow speed the friction speed scale shrinks with the bow, so the friction curve
+// looks the same to the string at every dynamic. Otherwise a slow, soft bow slips several
+// times a period (a hollow "surface" sound) instead of giving a clean pianissimo.
+u0Speed = 0.25;
 
 // String losses: how long harmonics ring (T60, s) at low and high frequency.
 t60Low  = 1.5;               // stopped string, low harmonics
@@ -121,7 +128,7 @@ outGain = 1.0;
 // vh: string velocity at the bow without the bow (sum of the two incoming waves)
 // vb: bow velocity; F: bow force / 2Z (m/s), so the string sticks while |vb - vh| <= muS*F
 // Returns delta (added to both outgoing waves) and whether the string is now stuck.
-friction(mus, mud, vb, F, vh, wasStuck) = delta, stuck
+friction(mus, mud, u0, vb, F, vh, wasStuck) = delta, stuck
 with {
     dh = vb - vh;
     s = (dh >= 0) * 2 - 1;
@@ -155,7 +162,7 @@ with {
                          stuck, bIn, stuck
     with {
         vh = bIn + nIn;
-        j = friction(mus, muD, vb, F, vh, st);
+        j = friction(mus, muD, u0 * max(0.04, min(1, vb/u0Speed)), vb, F, vh, st);
         delta = (j : _, !) + noise;
         stuck = j : !, _;
         toB = nIn + delta;
@@ -206,7 +213,8 @@ with {
     bowSpeed = speed + accent*bowSpeedMax*0.3;                 // a strike adds speed at once
     vb = gate * bowSpeed : si.lag_ud(0.03, bowRelease);
     lowBoost = max(1, bowForceLowHz/max(freq, 20))^bowForceLowExp;
-    FT = gate * bowForceK * lowBoost * (1 + (bowForceLoud - 1)*dyn + accent) * (1 + 1.5*bowJitter*lfn(17))
+    softBoost = 1 + (bowForceSoft - 1)*max(0, 1 - dyn/0.5)^2;
+    FT = gate * bowForceK * lowBoost * softBoost * (1 + (bowForceLoud - 1)*dyn + accent) * (1 + 1.5*bowJitter*lfn(17))
        * 0.183 * bowSpeed / beta^1.5;
     F = FT : si.lag_ud(0.02, bowRelease*0.7);
 
@@ -239,16 +247,26 @@ with {
         k = 1 - exp(-P/(ma.SR*earTau));
     };
 
-    symp = par(i, ba.count(openStrings), openString(ba.take(i + 1, openStrings))) :> _;
-    openString(fo) = (+ : de.fdelay2(MAXD, ma.SR/fo - 2.5)) ~ (*(10^(-3/(fo*sympT60))) : fi.lowpass(1, 5000));
-    bridge = str <: _, (*(sympathy) <: par(i, ba.count(openStrings), _) : symp) :> _;
-
     regDb = registerTilt*log(max(freq, 20)/registerRef)/log(2) : max(-15) : min(15);
-    sound = bridge : fi.dcblocker : fi.high_shelf1(brightLoud*(dyn - brightMid), brightHz)
-        : fi.high_shelf1(regDb, min(4.5*freq, 15000)) : body : ring
-        : *(outGain * ba.db2linear(levelAt(freq)));
+    // The force on the bridge from this string. The instrument's body, its ring and the other
+    // strings ringing along are shared by all the notes: see post below.
+    sound = str : fi.dcblocker : fi.high_shelf1(brightLoud*(dyn - brightMid), brightHz)
+        : fi.high_shelf1(regDb, min(4.5*freq, 15000)) : *(outGain * ba.db2linear(levelAt(freq)));
     out = select2(debugStuck, sound, stuckNow);              // debugStuck: for tools/timbre only
 };
+
+// What all the notes share, as on a real instrument: the open strings ringing along, the
+// body, and the body's ring. The host runs one copy of `post` on the sum of every voice
+// (lib/mpe.lib), so the body costs the same for one note as for ten.
+post = _ <: (_ <: _, (*(sympathy) <: par(i, ba.count(openStrings), _) : symp) :> body : ring), _
+     : select2(debugStuck)                                  // debugStuck: pass the stick/slip state through
+with {
+    symp = par(i, ba.count(openStrings), openString(ba.take(i + 1, openStrings))) :> _;
+    openString(fo) = (+ : de.fdelay2(MAXD, ma.SR/fo - 2.5)) ~ (*(10^(-3/(fo*sympT60))) : fi.lowpass(1, 5000));
+};
+
+// One voice with its own body, for tools that play a single note without a host.
+voiceWithBody(freq, gate, pressure, slide, velocity, legato) = voice(freq, gate, pressure, slide, velocity, legato) : post;
 
 levelAt(f) = sum(i, n - 1, seg(i))
 with {
