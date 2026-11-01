@@ -27,6 +27,8 @@ bowed = library("bowed.lib")[
     brightLoud = hslider("brightLoud", 10, -20, 20, 0.01);
     debugStuck = hslider("debugStuck", 0, 0, 1, 1);
     earRange = hslider("earRange", 0.06, 0, 0.2, 0.001);
+    registerTilt = hslider("registerTilt", 3.5, -20, 20, 0.01);
+    registerRef = hslider("registerRef", 700, 20, 2000, 1);
     bowJitter = hslider("bowJitter", 0.08, 0, 0.5, 0.001);
     ringMix = hslider("ringMix", 0.8, 0, 2, 0.001);
     ringT60 = hslider("ringT60", 0.12, 0.01, 1, 0.001);
@@ -35,4 +37,4 @@ bowed = library("bowed.lib")[
     body = _ <: (library("body_violin.lib").body, _) : select2(hslider("raw", 0, 0, 1, 1));
     outGain = hslider("outGain", 0.5, 0, 4, 0.001);
 ];
-process = bowed.voice(mpe.freq, mpe.gate, mpe.pressure, mpe.slide, mpe.velocity);
+process = bowed.voice(mpe.freq, mpe.gate, mpe.pressure, mpe.slide, mpe.velocity, mpe.legato);

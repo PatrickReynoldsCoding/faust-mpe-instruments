@@ -1,6 +1,6 @@
-"""Refit an instrument to its recordings after changing the engine or its settings:
-body correction rounds (evaluate.py + makebody.py), the lowest notes' fundamentals
-(fundfix.py), then the loudness balance across the range (levelbal.py). Uses the real
+"""Refit an instrument to its recordings after changing the engine or its settings: the
+lowest notes' fundamentals (fundfix.py), body correction rounds (evaluate.py + makebody.py),
+then the loudness balance across the range (levelbal.py). Uses the real
 instrument file, and the plugins in build-lab/ (a running host is not disturbed).
    python refit.py violin [rounds=3]"""
 import sys, subprocess, os
@@ -16,14 +16,14 @@ def run(*args, show=None):
         print("   ", l)
 
 def main(inst, rounds=3):
+    # the lowest notes first: the envelope rounds after it then have the last word
+    print(f"[{inst}] low fundamentals")
+    run("fundfix.py", inst, "--apply", show=["difference"])
+    run("makebody.py", inst, "--correct", show=["wrote"])
     for i in range(rounds):
         print(f"[{inst}] body round {i + 1}")
         run("evaluate.py", inst, "--correction", show=["envelope error", "timbre error"])
         run("makebody.py", inst, "--apply-diff", show=["accumulated"])
-    for i in range(2):
-        print(f"[{inst}] low fundamentals {i + 1}")
-        run("fundfix.py", inst, "--apply", show=["difference"])
-        run("makebody.py", inst, "--correct", show=["wrote"])
     print(f"[{inst}] loudness balance")
     run("levelbal.py", inst, "--apply", show=["correction", "updated"])
     print(f"[{inst}] final")

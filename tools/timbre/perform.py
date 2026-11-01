@@ -45,10 +45,11 @@ def notes_from(x, fmin, fmax, min_note=0.06, min_per=0.8, jump_st=0.6):
 
 
 def controls(notes, total, level_to_pressure, slide=0.5, velocity=0.7, voices=6, legato_overlap=0.01):
-    """Control curves (blocks, voices, 5) that play the notes. level_to_pressure maps the
-    recording's level (dB) to the instrument's pressure, per note frame."""
+    """Control curves (blocks, voices, 6) that play the notes. level_to_pressure maps the
+    recording's level (dB) to the instrument's pressure, per note frame. A note that starts
+    less than 25 ms after the previous one ends is played legato (a slur)."""
     nb = int(total * S.SR / BLK) + 1
-    ctl = np.zeros((nb, voices, 5))
+    ctl = np.zeros((nb, voices, 6))
     ctl[:, :, 0] = 440; ctl[:, :, 3] = slide; ctl[:, :, 4] = velocity
     tb = np.arange(nb) * BLK / S.SR
     free_at = np.zeros(voices)
@@ -58,6 +59,7 @@ def controls(notes, total, level_to_pressure, slide=0.5, velocity=0.7, voices=6,
         tt = nt["start"] + np.arange(len(nt["hz"])) * A.HOP / A.SR
         ctl[a:b, vi, 0] = np.interp(tb[a:b], tt, nt["hz"])
         ctl[a:b, vi, 1] = 1
+        ctl[a:b, vi, 5] = 1 if k and nt["start"] - notes[k - 1]["end"] < 0.025 else 0
         # a player's pressure does not follow the recording's vibrato flicker: smooth ~60 ms
         sm = int(os.environ.get("PRESS_SMOOTH", 12))
         dbs = nt["db"] if sm <= 1 or len(nt["db"]) < 3 else \

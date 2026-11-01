@@ -3,7 +3,7 @@
 // (bow noise, natural vibrato). The violin and cello files only set the numbers, e.g.
 //
 //     bowed = library("bowed.lib")[ openStrings = (196, 293.66, 440, 659.26); ... ];
-//     process = bowed.voice(mpe.freq, mpe.gate, mpe.pressure, mpe.slide, mpe.velocity);
+//     process = bowed.voice(mpe.freq, mpe.gate, mpe.pressure, mpe.slide, mpe.velocity, mpe.legato);
 //
 // How it works (velocities in m/s):
 //   - The string is two delay loops, bow-to-bridge-and-back and bow-to-finger-and-back,
@@ -44,6 +44,8 @@ bowPosLoud  = 1.0;           // at p = 1 the bow is this fraction of the way to 
 bowStartSoft = 0.2;          // s, bow up to speed on the softest touch
 bowStartHard = 0.015;        // s, on the hardest strike
 bowAccent    = 0.8;          // extra speed and force at a hard strike, fading over 0.12 s
+// A slurred note (legato = 1) is a finger change under a moving bow: it speaks at once,
+// without an accent.
 bowRelease  = 0.06;          // s, bow leaves the string
 muS = 0.8; muD = 0.3; u0 = 0.1;   // friction: static, dynamic, speed scale (m/s)
 
@@ -91,6 +93,12 @@ bowJitter = 0.08;
 brightLoud = 0;
 brightHz = 1500;
 brightMid = 0.35;            // the pressure at which the shelf is flat (typical playing)
+
+// Tone by register: a shelf on the harmonics above the 4th, this many dB per octave of pitch
+// away from registerRef (> 0: darker low notes, brighter high notes). Used where the string's
+// own losses cannot be set for the colour without spoiling the bowing.
+registerTilt = 0;
+registerRef = 200;
 
 // Loudness balance across the range (dB at these pitches, straight lines between them in
 // log frequency, flat outside), so that equal pressure gives about equal loudness, as a player
@@ -156,7 +164,7 @@ with {
 };
 
 //---------------------------------- the whole voice ----------------------------------------
-voice(freq, gate, pressure, slide, velocity) = out
+voice(freq, gate, pressure, slide, velocity, legato) = out
 with {
     note = gate > gate';
     tNote = (+(1) : *(1 - note)) ~ _ : /(ma.SR);           // seconds since the note started
@@ -183,10 +191,10 @@ with {
 
     // Bow: speed and force follow pressure. The bow start is a ramp of its own (see bowStartSoft),
     // and force rises with the bow's speed so that a soft start never scratches.
-    accent = velocity*velocity * exp(-tNote/0.12) * bowAccent;
+    accent = velocity*velocity * exp(-tNote/0.12) * bowAccent * (1 - legato);
     dyn = max(pressure, 0) : si.smooth(ba.tau2pole(0.02));
     lively = (1 + lfn(2.5)*0.04) * (1 + bowJitter*lfn(13));   // a bow is never perfectly steady
-    att = bowStartHard + (bowStartSoft - bowStartHard)*(1 - min(velocity, 1))^2;
+    att = select2(legato > 0.5, bowStartHard + (bowStartSoft - bowStartHard)*(1 - min(velocity, 1))^2, bowStartHard*2);
     st = min(1, tNote/(2*att));
     onset = st*st*(3 - 2*st);                                // smooth S-curve, 0 -> 1 over 2*att
     posFar = bowPosNear + (bowPosFar - bowPosNear)*slide;
@@ -235,7 +243,9 @@ with {
     openString(fo) = (+ : de.fdelay2(MAXD, ma.SR/fo - 2.5)) ~ (*(10^(-3/(fo*sympT60))) : fi.lowpass(1, 5000));
     bridge = str <: _, (*(sympathy) <: par(i, ba.count(openStrings), _) : symp) :> _;
 
-    sound = bridge : fi.dcblocker : fi.high_shelf1(brightLoud*(dyn - brightMid), brightHz) : body : ring
+    regDb = registerTilt*log(max(freq, 20)/registerRef)/log(2) : max(-15) : min(15);
+    sound = bridge : fi.dcblocker : fi.high_shelf1(brightLoud*(dyn - brightMid), brightHz)
+        : fi.high_shelf1(regDb, min(4.5*freq, 15000)) : body : ring
         : *(outGain * ba.db2linear(levelAt(freq)));
     out = select2(debugStuck, sound, stuckNow);              // debugStuck: for tools/timbre only
 };

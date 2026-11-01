@@ -8,6 +8,8 @@
 //   pressure  0..1, how hard this finger presses (channel aftertouch).
 //   slide     0..1, finger position up/down the key (CC74).
 //   velocity  0..1, how hard the note was struck. Fixed for the whole note.
+//   legato    1 if the note started while another note of this instrument was sounding (or
+//             had just ended): a slur. Fixed for the whole note. Optional; most ignore it.
 //
 // A note starts with gate going 0 -> 1 on a freshly cleared instrument, so
 // `gate > gate'` is a reliable "note started" trigger.
@@ -17,6 +19,7 @@ gate     = hslider("gate", 0, 0, 1, 1);
 pressure = hslider("pressure", 0, 0, 1, 0.001);
 slide    = hslider("slide", 0.5, 0, 1, 0.001);
 velocity = hslider("velocity", 0.5, 0, 1, 0.001);
+legato   = hslider("legato", 0, 0, 1, 1);
 
 // 1 for exactly one sample when a note starts.
 trigger = gate > gate';

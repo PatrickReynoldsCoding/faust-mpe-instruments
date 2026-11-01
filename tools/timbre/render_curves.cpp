@@ -1,8 +1,8 @@
 // Plays an instrument from control curves, the way the host would, and writes raw float32.
 //   render_curves <instrument.so> <controls.f32> <voices> <out.f32> [name=value ...]
-// controls.f32 holds, for every 64-sample block and every voice, 5 floats:
-//   freq, gate, pressure, slide, velocity
-// (shape blocks x voices x 5). Each voice is its own instrument copy, cleared before every
+// controls.f32 holds, for every 64-sample block and every voice, 6 floats:
+//   freq, gate, pressure, slide, velocity, legato
+// (shape blocks x voices x 6). Each voice is its own instrument copy, cleared before every
 // note (gate 0 -> 1), like the host does. Extra name=value pairs set any other control.
 #include <cstdio>
 #include <cstdlib>
@@ -26,9 +26,10 @@ int main(int argc, char** argv) {
     while ((got = fread(buf, sizeof(float), 4096, cf)) > 0) ctl.insert(ctl.end(), buf, buf + got);
     fclose(cf);
     const int sr = 48000, blk = 64;
-    size_t nblocks = ctl.size() / (nv * 5);
+    const int NC = 6;
+    size_t nblocks = ctl.size() / (nv * NC);
 
-    struct V { dsp* d; MapUI ui; FAUSTFLOAT *f, *g, *p, *s, *v; float lastGate = 0; };
+    struct V { dsp* d; MapUI ui; FAUSTFLOAT *f, *g, *p, *s, *v, *l; float lastGate = 0; };
     std::vector<V> vs(nv);
     for (auto& v : vs) {
         v.d = lib.create();
@@ -36,7 +37,7 @@ int main(int argc, char** argv) {
         v.d->buildUserInterface(&v.ui);
         v.d->instanceClear();
         v.f = v.ui.getParamZone("freq"); v.g = v.ui.getParamZone("gate"); v.p = v.ui.getParamZone("pressure");
-        v.s = v.ui.getParamZone("slide"); v.v = v.ui.getParamZone("velocity");
+        v.s = v.ui.getParamZone("slide"); v.v = v.ui.getParamZone("velocity"); v.l = v.ui.getParamZone("legato");
         for (int i = 5; i < argc; i++) {
             std::string a = argv[i];
             size_t eq = a.find('=');
@@ -54,7 +55,7 @@ int main(int argc, char** argv) {
     for (size_t b = 0; b < nblocks; b++) {
         for (int k = 0; k < nv; k++) {
             V& v = vs[k];
-            const float* c = &ctl[(b * nv + k) * 5];
+            const float* c = &ctl[(b * nv + k) * NC];
             if (c[1] > 0.5f && v.lastGate < 0.5f) v.d->instanceClear();   // new note on a cleared copy
             v.lastGate = c[1];
             if (v.f) *v.f = c[0];
@@ -62,6 +63,7 @@ int main(int argc, char** argv) {
             if (v.p) *v.p = c[2];
             if (v.s) *v.s = c[3];
             if (v.v) *v.v = c[4];
+            if (v.l) *v.l = c[5];
             v.d->compute(blk, ins, outs.data());
             for (int i = 0; i < blk; i++) {
                 float s = 0;

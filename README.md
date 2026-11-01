@@ -51,7 +51,7 @@ range (the host caps pitch at 5 kHz): use the Octave buttons, or `-t -72` for si
 ## Add an instrument
 
 Drop a `.dsp` file in the right folder, run `make`, and it appears in the window (restart
-the host). Every instrument gets the same five controls from `lib/mpe.lib`; it decides what they do:
+the host). Every instrument gets the same controls from `lib/mpe.lib`; it decides what they do:
 
 | control    | meaning |
 |------------|---------|
@@ -60,6 +60,7 @@ the host). Every instrument gets the same five controls from `lib/mpe.lib`; it d
 | `pressure` | 0..1, how hard this finger presses |
 | `slide`    | 0..1, finger position up/down the key |
 | `velocity` | 0..1, how hard the note was struck |
+| `legato`   | 1 if the note started while another was sounding (a slur); optional |
 
 Smallest possible instrument:
 

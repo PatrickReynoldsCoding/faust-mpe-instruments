@@ -4,7 +4,7 @@
 //
 // Loads every instrument found in build/<group>/<name>.so, runs one copy of the
 // current instrument per MPE channel (one per finger), and sets the five controls
-// from lib/mpe.lib on each copy: freq, gate, pressure, slide, velocity.
+// from lib/mpe.lib on each copy: freq, gate, pressure, slide, velocity (and legato).
 //
 // Switch instruments while playing by writing commands to the control pipe
 // (the window in ui/ does this):
@@ -59,7 +59,8 @@ static bool gVerbose = false;             // -v: log notes and the values sent t
 struct Slot {
     dsp* d = nullptr;
     MapUI ui;
-    FAUSTFLOAT *freq = nullptr, *gate = nullptr, *pressure = nullptr, *slide = nullptr, *velocity = nullptr;
+    FAUSTFLOAT *freq = nullptr, *gate = nullptr, *pressure = nullptr, *slide = nullptr, *velocity = nullptr,
+               *legato = nullptr;
 };
 struct InstrumentSet {
     const InstrumentLib* lib;
@@ -76,6 +77,7 @@ struct InstrumentSet {
             s.pressure = s.ui.getParamZone("pressure");
             s.slide = s.ui.getParamZone("slide");
             s.velocity = s.ui.getParamZone("velocity");
+            s.legato = s.ui.getParamZone("legato");
             outputs = std::min(2, s.d->getNumOutputs());
         }
     }
@@ -231,6 +233,8 @@ static void controlThread() {
 struct VoiceRuntime {
     int seenNoteOn = 0;
     bool sounding = false;
+    bool legato = false;           // this note started while another was sounding (a slur)
+    int releasedBlocks = 1 << 20;  // blocks since this channel's note ended
     float freq = 440, pressure = 0, slide = 0.5f, level = 0;
     int quietBlocks = 0;
     int logTick = 0;
@@ -337,6 +341,7 @@ int main(int argc, char** argv) {
     auto coef = [&](float tau) { return 1.f - std::exp(-dt / tau); };
     const float cFreq = coef(0.004f), cPress = coef(0.012f), cSlide = coef(0.02f);
     const int quietLimit = int(0.4f / dt);
+    const int legatoBlocks = int(0.08f / dt);       // a note ended less than 80 ms ago still counts
 
     VoiceRuntime rt_[kChannels];
     std::vector<float> in(kBlock, 0.f), outL(kBlock), outR(kBlock), mixL(kBlock), mixR(kBlock), stereo(kBlock * 2);
@@ -376,6 +381,9 @@ int main(int argc, char** argv) {
                 v.seenNoteOn = cnt;
                 if (!held) { v.sounding = false; }
                 else {
+                    v.legato = false;                    // slurred if another note is held or just ended
+                    for (int k = 1; k < kChannels; k++)
+                        if (k != ch && (gCh[k].note.load() >= 0 || rt_[k].releasedBlocks < legatoBlocks)) v.legato = true;
                     v.sounding = true;
                     v.quietBlocks = 0;
                     v.freq = noteToHz(note + gTranspose.load() + c.bend.load());
@@ -401,6 +409,8 @@ int main(int argc, char** argv) {
             if (sl.pressure) *sl.pressure = v.pressure;
             if (sl.slide) *sl.slide = v.slide;
             if (sl.velocity) *sl.velocity = std::min(1.f, c.velocity.load() * gVelocityScale);
+            if (sl.legato) *sl.legato = v.legato ? 1.f : 0.f;
+            v.releasedBlocks = held ? 0 : std::min(v.releasedBlocks + 1, 1 << 20);
 
             if (gVerbose && ++v.logTick % 375 == 0)          // about every half second
                 printf("  ch %d: freq %.1f gate %.0f pressure %.2f slide %.2f velocity %.2f   level %.4f\n",

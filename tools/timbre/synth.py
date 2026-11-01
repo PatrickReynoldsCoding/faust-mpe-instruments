@@ -24,7 +24,7 @@ def build(dsp):
 
 
 def render(so, ctl, extra=None):
-    """ctl: array (blocks, voices, 5) of freq, gate, pressure, slide, velocity per 64-sample block."""
+    """ctl: array (blocks, voices, 6) of freq, gate, pressure, slide, velocity, legato per 64-sample block."""
     ctl = np.ascontiguousarray(ctl, dtype=np.float32)
     nv = ctl.shape[1]
     with tempfile.TemporaryDirectory() as d:
@@ -47,7 +47,7 @@ def note_ctl(freq, pressure=0.7, slide=0.5, velocity=0.7, hold=1.5, total=None, 
         ramp = np.clip((t - vib_delay) / 0.3, 0, 1)
         f = f * 2 ** (vib_cents * ramp * np.sin(2 * np.pi * vib_hz * t) / 1200)
     p = pressure(t) if callable(pressure) else np.full(n, float(pressure))
-    ctl = np.zeros((n, 1, 5))
+    ctl = np.zeros((n, 1, 6))
     ctl[:, 0, 0] = f; ctl[:, 0, 1] = t < hold; ctl[:, 0, 2] = p; ctl[:, 0, 3] = slide; ctl[:, 0, 4] = velocity
     return ctl
 
