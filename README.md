@@ -38,6 +38,7 @@ range (the host caps pitch at 5 kHz): use the Octave buttons, or `-t -72` for si
       struck/   marimba, vibraphone
       voices/   soprano, tenor, bass
       synths/   pad, fm-keys, lead
+      drums/    kit (one drum per note of the octave)
     lib/mpe.lib      the contract every instrument follows (below)
     lib/bowed.lib    shared bowed-string engine (violin, cello)
     lib/body_*.lib   violin and cello bodies, fitted to recordings (generated, see below)
