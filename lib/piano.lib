@@ -1,0 +1,100 @@
+// Piano: a felt hammer strikes stiff strings, which ring through a soundboard.
+//
+//   - Each note is two string loops (a delay, a cascade of allpasses and a one-pole loss).
+//     The allpasses make the string stiff: its overtones sit progressively sharp, as on a
+//     real piano (inharmonicity). One loop is the "prompt sound", which fades fast, the
+//     other the slower "aftersound": together they give the piano's two-stage decay, and
+//     tuned a hair apart they beat gently, like the two or three strings of a real note.
+//   - The hammer is a half-sine push. A harder blow is shorter (brighter) and louder. It
+//     strikes about an eighth of the way along the string, which notches those overtones.
+//   - On release the damper stops the note (the top keys have no dampers, as on a grand),
+//     unless the finger was pressing firmly as it lifted: that is the sustain pedal for
+//     that note, and a medium press gives a half pedal.
+//   - Slide is the una corda: low on the key is softer and veiled, high is a harder, brighter blow.
+//   - The soundboard is a bank of resonators shared by all notes (`post`).
+// Every number that varies over the keyboard comes from lib/piano_fit.lib, fitted to
+// recordings of single notes by tools/piano/fit.py.
+import("stdfaust.lib");
+fit = library("piano_fit.lib");
+
+MAXD = 4096;                      // samples: longest string loop (A0 bent down)
+NAP = 16;                         // allpass stages available per loop
+detune = 0.7;                     // cents between the two loops
+undamped = 89;                    // MIDI note from which keys have no damper (F6 up)
+pedalLo = 0.72; pedalHi = 0.9;    // pressure at release: no pedal .. full pedal
+knockDb = -32;                    // the hammer's knock on the soundboard, against the note
+
+// A value from a per-key table, linearly between keys.
+tab(w, key) = rd(i) * (1 - fr) + rd(min(i + 1, 87)) * fr
+with {
+    k = max(0, min(87, key - 21));
+    i = int(k);
+    fr = k - i;
+    rd(j) = rdtable(w, j);
+};
+
+// Velocity -> the fitted pp, mf, ff values (velocity 0.15, 0.5, 0.9), straight-line beyond.
+bydyn(v, a, b, c) = ba.if(v < 0.5, a + (b - a) * (v - 0.15) / 0.35, b + (c - b) * (v - 0.5) / 0.4);
+
+// First-order allpass and its phase delay (samples) at w rad/sample.
+ap(a) = fi.tf1(a, 1, a);
+apDelay(a, w) = 1 - 2 * atan2(a * sin(w), 1 + a * cos(w)) / w;
+// One-pole lowpass with gain 1 at DC and its phase delay.
+lp(p) = *(1 - p) : + ~ *(p);
+lpDelay(p, w) = atan2(p * sin(w), 1 - p * cos(w)) / w;
+
+// One string loop at f Hz: x in, the travelling wave out. t60 = seconds for the fundamental
+// to die away, p = loss lowpass pole (higher partials die faster), damp = extra decay rate
+// (1/s, 6.91 = 60 dB in a second) from the damper.
+string(f, M, a, t60, p, damp) = (+ : de.fdelay4(MAXD, D) : disp : lp(p) : *(g)) ~ _
+with {
+    w = 2 * ma.PI * f / ma.SR;
+    D = max(2, ma.SR / f - M * apDelay(a, w) - lpDelay(p, w) - 1);   // -1: the loop's own sample
+    lpGain = (1 - p) / sqrt(1 - 2 * p * cos(w) + p * p);
+    rate = 6.91 / t60 + damp;                                        // e-folding per second
+    g = exp(-rate / f) / lpGain;
+    disp = seq(i, NAP, (_ <: _, ap(a) : select2(i < M)));      // the first M stages are in
+};
+
+voice(freq, gate, pressure, slide, velocity) = out
+with {
+    trig = gate > gate';
+    key = 69 + 12 * log(freq / 440) / log(2);
+    T(w) = tab(w, key);
+    f0 = freq * pow(2, T(fit.stretch) / 1200);
+    held(x) = ba.sAndH(trig, x);                     // a value fixed at the strike
+    v = held(velocity);
+    una = held(slide);                               // 0 = una corda (soft, veiled) .. 1 = bright
+
+    // hammer
+    th = bydyn(v, T(fit.thPP), T(fit.thMF), T(fit.thFF)) * pow(2, 0 - max(0, una - 0.5) * 0.9);   // high on the key: a harder blow
+    unaSoft = max(0, 0.5 - una) * 2;                    // low on the key: the una corda's softer felt
+    feltHz = 20000 * pow((2 * f0 + 400) / 20000, unaSoft);
+    nth = max(2, th * 0.001 * ma.SR);
+    since = ba.time - ba.sAndH(trig, ba.time);
+    pulse = ba.if(since < nth, sin(ma.PI * since / nth), 0);
+    lvl = bydyn(v, T(fit.lvPP), T(fit.lvMF), T(fit.lvFF)) - max(0, 0.5 - una) * 6;
+    amp = ba.db2linear(lvl) / max(1, nth / 16);      // a longer blow puts in the same peak force, not more energy
+    beta = ba.if(key < 70, 0.122 - (key - 21) * 0.004 / 49, 0.118 - (key - 70) * 0.058 / 38);
+    strike = pulse * amp <: _, de.fdelay(MAXD, beta * ma.SR / f0) : - : fi.lowpass(1, feltHz);
+    knock = no.noise * en.ar(0.0003, 0.012, trig) * amp * ba.db2linear(knockDb) * 16 : fi.lowpass(2, min(6000, 4 * f0 + 600));
+
+    // dampers and pedal
+    press = max(pressure) ~ *(exp(-1 / (0.25 * ma.SR)));     // peak of the last ~quarter second
+    pedal = max(0, min(1, (ba.sAndH(gate, press) - pedalLo) / (pedalHi - pedalLo)));
+    damperRate = 6.91 / ba.if(key < 60, 0.35, 0.18);
+    damp = (1 - gate) * pow(1 - pedal, 3) * (key < undamped) * damperRate : si.smooth(ba.tau2pole(0.025));
+
+    M = T(fit.apM) + 0.5 : int;
+    a = T(fit.apA);
+    after = ba.db2linear(T(fit.after)) * (1 + unaSoft * 0.75);   // the unstruck string still rings with the others
+    s1 = strike : string(f0 * pow(2, -0.5 * detune / 1200), M, a, T(fit.t1), T(fit.p1), damp);
+    s2 = strike * after : string(f0 * pow(2, 0.5 * detune / 1200), M, a, T(fit.t2), T(fit.p2), damp);
+    out = (s1 + s2 + knock) * ba.db2linear(fit.gainDb);
+};
+
+// The soundboard, once for all the notes.
+post = fit.body;
+
+// One note with its own soundboard, for tools that play a single note without a host.
+solo(freq, gate, pressure, slide, velocity) = voice(freq, gate, pressure, slide, velocity) : post;

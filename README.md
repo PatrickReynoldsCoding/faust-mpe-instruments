@@ -35,6 +35,7 @@ range (the host caps pitch at 5 kHz): use the Octave buttons, or `-t -72` for si
       strings/  violin, cello
       winds/    flute, clarinet
       plucked/  nylon-guitar, steel-guitar
+      keys/     piano
       struck/   marimba, vibraphone
       voices/   soprano, tenor, bass
       synths/   pad, fm-keys, lead
@@ -43,6 +44,7 @@ range (the host caps pitch at 5 kHz): use the Octave buttons, or `-t -72` for si
     lib/bowed.lib    shared bowed-string engine (violin, cello)
     lib/body_*.lib   violin and cello bodies, fitted to recordings (generated, see below)
     lib/vocal.lib    shared sung-vowel engine (the voices)
+    lib/piano.lib    piano engine; lib/piano_fit.lib its per-key tables (generated, see below)
     src/             mpe-host.cpp (plays instruments), entry.cpp + loader.h (plugin loading),
                      room.dsp (the hall reverb)
     ui/switcher.py   the window (Python + built-in Tk, nothing to install)
@@ -95,6 +97,16 @@ Treat the numbers as a starting point and trust your ears over the tests.
 - **Flute** pitch depends on how hard you blow and where the embouchure is. Slide controls
   tone, not embouchure, for that reason. Very light blowing is a little flat, as on a real flute.
 - **Marimba**: the stock library one rings for 0.1 s, so it is rebuilt with a longer ring.
+- **Piano** is fitted, key by key, to the University of Iowa single notes of a Steinway B
+  (pp, mf and ff on all 88 keys). Each note is two stiff-string loops: allpasses make the
+  overtones sit sharp as on a real piano, and a fast "prompt" loop plus a slow "aftersound"
+  loop give the two-stage decay. The hammer is a half-sine blow, shorter and louder the harder
+  you strike. Stretch tuning, stiffness, both decays, hammer hardness, level by dynamic and the
+  soundboard all come from the recordings. Kimiko Ishizaka's CC0 *Open Well-Tempered Clavier*
+  (a Bösendorfer) is the check on whole pieces. Controls: velocity is the blow; press firmly
+  (above about 0.72, full from 0.9) as you lift and the note keeps ringing, the sustain pedal
+  for that note; slide low on the key is the una corda, quieter and veiled. Keys from F6 up
+  have no dampers, as on a grand.
 
 ## Fitting the strings to recordings (tools/timbre/)
 
@@ -111,3 +123,16 @@ and reference recordings in `refs/<player>/*.wav` (48 kHz; not in the repo, `ref
 Other checks: `helmholtz.py` (where the bare string bows cleanly), `regprofile.py` (brightness
 by register), `tilt.py` (brightness against loudness), `onsets.py` (attacks and slurs),
 `amsplit.py` (vibrato shimmer), `vibstats.py` (a player's vibrato), `levelbal.py`.
+
+## Fitting the piano (tools/piano/)
+
+Needs the same venv, `refs/iowa-piano/<dyn>.<note>.wav` (Iowa MIS piano), and for the check on
+whole pieces `refs/ishizaka/*.wav` with matching MIDI in `refs/wtc-midi/` (Mutopia). Sources and
+licences are in each folder's `SOURCES.md`.
+
+    python notes.py                   measure every Iowa note -> refs/iowa-piano.npz
+    python fit.py init                first tables -> lib/piano_fit.lib
+    make && python fit.py refit 3     render every key at pp/mf/ff, measure it the same way, correct
+    python fit.py report              where the instrument still differs, by register
+    python clapcheck.py keys/piano    CLAP opinion: our piano playing Ishizaka's pieces from MIDI
+    python play_midi.py keys/piano in.mid out.wav --room    play any MIDI file offline
