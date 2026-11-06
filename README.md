@@ -32,18 +32,23 @@ range (the host caps pitch at 5 kHz): use the Octave buttons, or `-t -72` for si
 ## Layout
 
     instruments/<group>/<name>.dsp    one sound per file. The folder is the group in the window.
-      strings/  violin, cello
-      winds/    flute, clarinet
-      plucked/  nylon-guitar, steel-guitar
-      keys/     piano
-      struck/   marimba, vibraphone
-      voices/   soprano, tenor, bass
-      synths/   pad, fm-keys, lead
-      drums/    kit (one drum per note of the octave)
+      strings/     violin, cello
+      keys/        piano, rhodes, wurlitzer, clavinet, harpsichord, celesta, toy-piano
+      organs/      organ, church-organ, accordion, harmonium
+      plucked/     nylon-guitar, steel-guitar, electric-guitar, bass-guitar, banjo, harp, dulcimer
+      struck/      marimba, vibraphone, kalimba, glockenspiel, xylophone, steel-drum, tubular-bell
+      winds/       flute, clarinet, oboe, alto-sax, pan-flute, whistle, harmonica
+      brass/       trumpet, trombone, french-horn
+      voices/      soprano, tenor, bass
+      synths/      pad, lead, fm-keys, supersaw, sub-bass, acid-bass, wobble-bass, square-lead,
+                   sync-lead, chip-lead, string-machine, glass-pad, brass-synth, pluck-synth
+      drums/       kit (one drum per note of the octave)
+      percussion/  timpani, taiko, 808-kick, conga, djembe, woodblock, cowbell
     lib/mpe.lib      the contract every instrument follows (below)
     lib/bowed.lib    shared bowed-string engine (violin, cello)
     lib/body_*.lib   violin and cello bodies, fitted to recordings (generated, see below)
     lib/vocal.lib    shared sung-vowel engine (the voices)
+    lib/synth.lib    plucked-string and struck-bar helpers for the quick sounds
     lib/piano.lib    piano engine; lib/piano_fit.lib its per-key tables (generated, see below)
     src/             mpe-host.cpp (plays instruments), entry.cpp + loader.h (plugin loading),
                      room.dsp (the hall reverb)
@@ -80,6 +85,14 @@ Optional declarations the tests understand: `ringout "6"` (seconds it may keep r
 and checks for no blow-ups, real sound while held, silence after release, and pitch within
 30 cents. `tools/grid.py <group/name> <hz,hz,...>` sweeps touch settings and lists every
 note that is out of tune: use it after changing an instrument.
+
+## Quick sounds
+
+Everything except violin, cello and piano (and the flute, clarinet and voices, which are
+model-based) is a quick sketch: simple synthesis, tuned only until `make test` passes
+(in tune, no blow-ups, stops on release). The 44 added in the packs batch were never
+listened to or fitted to recordings; expect to retune them by ear. In the Android app they
+are grouped into packs: Classical (cello, piano, violin, the fitted ones) and five more.
 
 ## Notes on how the sounds were tuned
 

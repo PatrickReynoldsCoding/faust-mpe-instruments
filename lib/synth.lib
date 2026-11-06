@@ -1,0 +1,19 @@
+// Small shared pieces for the quick sounds: plucked strings and struck bars.
+import("stdfaust.lib");
+
+// Karplus-Strong string. g = loop gain (0.99 short .. 0.999 long), the averaging filter
+// darkens it as it rings. Tuned: the loop is the delay line plus 1.5 samples of filter and feedback.
+string(f, g, ex) = ex : (+ ~ (de.fdelay4(2048, max(1.5, ma.SR / f - 1.5)) : avg : *(g)))
+with { avg(x) = (x + x') * 0.5; };
+
+// A short burst of noise, n ms long, from a note trigger: the pick or the hammer.
+burst(ms, trig) = no.noise * en.ar(0.0003, ms / 1000, trig);
+
+// A bar or bell: partials at these ratios of f, each ringing for t60 seconds (scaled by decay)
+// with these gains, struck by the one-sample trigger.
+modes(f, rs, ts, gs, decay, trig) = par(i, N, partial(i)) :> _
+with {
+    N = outputs(rs);
+    partial(i) = trig : fi.pole(ba.tau2pole(ba.take(i + 1, ts) * decay / 6.9))
+               : *(os.osc(min(f * ba.take(i + 1, rs), 12000)) * ba.take(i + 1, gs));
+};

@@ -1,0 +1,15 @@
+declare name "Pluck Synth";
+declare range "130 1047";
+declare ringout "2";
+declare window "0.05 0.4";
+declare description "Short synth pluck: a saw whose filter closes after the strike. Slide sets how long it rings.";
+import("stdfaust.lib");
+mpe = library("mpe.lib");
+
+decay  = 0.12 + 0.9 * mpe.slide;
+env    = mpe.trigger : fi.pole(ba.tau2pole(decay / 5));
+body   = mpe.trigger : fi.pole(ba.tau2pole((0.2 + 1.5 * mpe.slide) / 5));
+cutoff = 300 + 6000 * env * (0.3 + 0.7 * mpe.velocity);
+tone   = (os.sawtooth(mpe.freq) + os.sawtooth(mpe.freq * 1.003)) * 0.5;
+
+process = tone : fi.lowpass(2, min(cutoff, mpe.freq * 16)) : *(body) * 0.8;
