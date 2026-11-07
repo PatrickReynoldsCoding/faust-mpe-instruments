@@ -6,7 +6,8 @@ Only this instruments repo is touched. Another agent is working on odo.
 ## Adding
 
 - `instruments/keys/max-richter.dsp`: the instrument. Name "Max Richter" (not "Piano 2").
-  Mono, one voice per finger, the same six controls as every instrument.
+  One voice per finger, the same six controls as every instrument, no new options for the player.
+  Stereo out of `post` (see below).
   Declares: `artist`, `songs` (every recording used, ` | ` separated), `reference_licence`,
   `status "current"`, `sound` (its own effects defaults), `range`, `description`, test hints.
 - The engine is the existing `lib/piano.lib` (stiff strings, felt hammer, soundboard `post`),
@@ -15,6 +16,12 @@ Only this instruments repo is touched. Another agent is working on odo.
   recordings and writes the tables. What is fitted: tone by register (spectral balance), how
   fast notes decay, hammer softness and its level by loudness, the quiet mechanical noise, and
   a fixed close-microphone room in `post` (using `lib/fx.lib`).
+- Always-on sympathetic resonance inside the instrument (undamped strings ringing along, like a
+  pedal held about half down), so the recordings' ringing is modelled and not forced into the
+  hammer and decay tables. No control for it. Its CPU cost is measured with the engine bench.
+- Stereo from the soundboard: `post` already may output two channels, and the soundboard is a bank
+  of resonators, so each mode is tapped into left and right with its own weights, as a body
+  radiates. A natural width for headphones, with no engine change.
 - A local `refs/richter/SOURCES.md` listing every track (git-ignored, with the audio).
   The same titles go in the `songs` declare.
 - `make test` passing for it, plus an A/B report against the recordings
@@ -26,8 +33,10 @@ Only this instruments repo is touched. Another agent is working on odo.
 - No audio in the repo: only fitted numbers.
 - No change to the existing `keys/piano.dsp`, `lib/piano_fit.lib`, the cello, violin or any
   other instrument, and no change to `lib/mpe.lib` (the contract stays `mpe-voice/1`).
-- No stereo or per-key pan, no real pedals or sympathetic resonance, no articulations: these
-  are in "Room to grow" in odo's `INSTRUMENT_FORMAT.md`. The first version is mono.
+- No per-key pan (it needs the engine to keep voices stereo until `post`: odo and the computer
+  host, the other agent's area). No new pedal control: the existing press-to-hold stays the
+  only pedal. No articulations (not for a piano). Both are in "Room to grow" in odo's
+  `INSTRUMENT_FORMAT.md`.
 - No odo changes: no pack manifest edit, no engine or app code, no release. Until a pack
   lists it, odo puts it in "More sounds". Putting it in the Classical pack is a one-line
   change for whoever owns odo.
