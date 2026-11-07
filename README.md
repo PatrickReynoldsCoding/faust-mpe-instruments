@@ -53,7 +53,8 @@ range (the host caps pitch at 5 kHz): use the Octave buttons, or `-t -72` for si
     src/             mpe-host.cpp (plays instruments), entry.cpp + loader.h (plugin loading),
                      room.dsp (the hall reverb)
     ui/switcher.py   the window (Python + built-in Tk, nothing to install)
-    tools/           offline renderer and measuring tools
+    tools/           offline renderer, measuring tools, pack.py (MESH instrument packages)
+    tools/fitting/   everything for fitting instruments to reference recordings (its own README)
     tests/           checks run on every instrument, and on the host
 
 ## Add an instrument
@@ -106,7 +107,7 @@ Treat the numbers as a starting point and trust your ears over the tests.
   levels of the recordings, then corrected by playing the soloist's own phrases (their pitch,
   vibrato and dynamics) on the instrument and measuring what is still different.
   The vibrato, the loudness balance across the range and how the tone brightens with
-  pressure are measured from the recordings too. Tools: `tools/timbre/` (see below).
+  pressure are measured from the recordings too. Tools: `tools/fitting/timbre/` (see below).
 - **Flute** pitch depends on how hard you blow and where the embouchure is. Slide controls
   tone, not embouchure, for that reason. Very light blowing is a little flat, as on a real flute.
 - **Marimba**: the stock library one rings for 0.1 s, so it is rebuilt with a longer ring.
@@ -121,7 +122,7 @@ Treat the numbers as a starting point and trust your ears over the tests.
   for that note; slide low on the key is the una corda, quieter and veiled. Keys from F6 up
   have no dampers, as on a grand.
 
-## Fitting the strings to recordings (tools/timbre/)
+## Fitting the strings to recordings (tools/fitting/timbre/)
 
 Needs a Python venv with numpy, scipy, soundfile (and torch + transformers for `clapcheck.py`),
 and reference recordings in `refs/<player>/*.wav` (48 kHz; not in the repo, `refs/` is ignored).
@@ -137,7 +138,7 @@ Other checks: `helmholtz.py` (where the bare string bows cleanly), `regprofile.p
 by register), `tilt.py` (brightness against loudness), `onsets.py` (attacks and slurs),
 `amsplit.py` (vibrato shimmer), `vibstats.py` (a player's vibrato), `levelbal.py`.
 
-## Fitting the piano (tools/piano/)
+## Fitting the piano (tools/fitting/piano/)
 
 Needs the same venv, `refs/iowa-piano/<dyn>.<note>.wav` (Iowa MIS piano), and for the check on
 whole pieces `refs/ishizaka/*.wav` with matching MIDI in `refs/wtc-midi/` (Mutopia). Sources and
