@@ -1,0 +1,22 @@
+// Effects that are part of an instrument's character, for its `post` stage (one copy for all the
+// notes, mono in, stereo out). The long, adjustable hall and the tempo delay stay in the host:
+// they are the player's choice and are shared by layered sounds.
+import("stdfaust.lib");
+
+// A short, fixed room (a cabinet, a close mic, a spring): amount 0..1 of wet, t60 in seconds.
+room(amount, t60) = _ <: (_, _), re.zita_rev1_stereo(10, 200, 6000, t60, t60 * 0.8, ma.SR)
+                  : ro.interleave(2, 2) : par(i, 2, (_, *(amount)) :> _);
+
+// A delay swung by a slow oscillator (chorus voice): ms centre, depth in ms, rate in Hz, phase in radians.
+wob(ms, depth, rate, ph) = de.fdelay(4096, (ms + depth * os.oscp(rate, ph)) * 0.001 * ma.SR);
+
+// Ensemble: each ear hears the note plus two swung copies, differently, so it spreads and thickens.
+ensemble = _ <: ear(10, 3, 0.50, 0, 14, 2.5, 0.83, 2.1), ear(11, 3, 0.60, 1.0, 15, 2.5, 0.71, 4.0)
+with { ear(m1, d1, r1, p1, m2, d2, r2, p2) = _ <: (_ * 0.5, wob(m1, d1, r1, p1) * 0.3, wob(m2, d2, r2, p2) * 0.3) :> _; };
+
+// A rotating speaker in "chorale": the horn's loudness and pitch swing, out of step in the two ears.
+rotary = _ <: ear(0), ear(3.1416)
+with { ear(ph) = _ <: (_ * 0.25, wob(2, 0.35, 0.9, 0) * (0.75 - 0.12 * (0.5 + 0.5 * os.oscp(0.9, ph)))) :> _; };
+
+// An electric guitar through a small open-back cabinet: no lows, no air, a mid hump.
+cab = fi.highpass(2, 90) : fi.lowpass(2, 4800) : fi.peak_eq(5, 1800, 900);

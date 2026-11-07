@@ -9,8 +9,9 @@ With no files, packs every instrument. A package is a zip:
     instrument.dsp    the source, as written
     lib/*.lib         every library it imports (ours and Faust's), so it builds the same anywhere
 
---sounds: a folder of odo's pack manifests (assets/packs/*.json), for the effects each
-instrument is meant to be heard with, until those move into the instruments' own `declare`s.
+The effects an instrument is meant to be heard with are its own: `declare sound "reverb=0.3 ..."`.
+--sounds: a folder of odo's pack manifests (assets/packs/*.json), only for an instrument that has
+no `declare sound` (older checkouts).
 A package is only rebuilt when its .dsp or a library it uses is newer.
 """
 import argparse
@@ -60,6 +61,19 @@ def sound_defaults(packs_dir):
         for g in p.get("groups", []):
             for i in g.get("instruments", []):
                 out.setdefault(i, dict(base, **p.get("overrides", {}).get(i, {})))
+    return out
+
+
+SOUND_KEYS = ("reverb", "reverbSize", "reverbDamp", "delay", "brightness", "drive", "pressureCurve", "release")
+
+
+def own_sound(d):
+    """The effects the instrument itself says it is meant to be heard with: `declare sound "reverb=0.3 delay=0 ..."`."""
+    out = {}
+    for pair in d.get("sound", "").split():
+        k, _, v = pair.partition("=")
+        if k in SOUND_KEYS:
+            out[k] = float(v)
     return out
 
 
@@ -114,7 +128,7 @@ def pack(dsp, out_dir, libdir, sounds):
         "post": has_post,
         "tags": [group],
         "knobs": knobs,
-        "sound": sounds.get(old_id, {}),
+        "sound": dict(sounds.get(old_id, {}), **own_sound(d)),
         "references": references(d),
         "tests": {k: d[k] for k in ("ringout", "window", "pitched") if k in d},
         "faust": main["version"],

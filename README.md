@@ -48,6 +48,7 @@ range (the host caps pitch at 5 kHz): use the Octave buttons, or `-t -72` for si
     lib/bowed.lib    shared bowed-string engine (violin, cello)
     lib/body_*.lib   violin and cello bodies, fitted to recordings (generated, see below)
     lib/vocal.lib    shared sung-vowel engine (the voices)
+    lib/fx.lib       effects for an instrument's own `post` stage: rotary, ensemble, cabinet, small room
     lib/synth.lib    plucked-string and struck-bar helpers for the quick sounds
     lib/piano.lib    piano engine; lib/piano_fit.lib its per-key tables (generated, see below)
     src/             mpe-host.cpp (plays instruments), entry.cpp + loader.h (plugin loading),
@@ -78,6 +79,14 @@ Smallest possible instrument:
     import("stdfaust.lib");
     mpe = library("mpe.lib");
     process = os.osc(mpe.freq) * mpe.gate * mpe.pressure : si.smooth(0.999) * 0.3;
+
+An instrument owns how it is meant to be heard. `declare sound "reverb=0.3 reverbSize=0.3
+reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0"` gives odo (and any host) the
+starting effects for it: sends to the host's hall and delay, a tone and drive, its touch curve
+and a release (0 = the instrument ends its own notes; it must, by how it treats `gate` falling).
+What belongs to the instrument's character (a rotating speaker, an ensemble chorus, a cabinet, a
+small room) goes in its `post` stage, using `lib/fx.lib`; the long hall, the tempo delay and the
+arpeggiator stay in the host. `tools/pack.py` puts `sound` in the package manifest.
 
 An instrument fitted to recordings also declares what it was fitted to, and `tools/pack.py` puts it
 in the package manifest as `references`: `artist "Max Richter"`, `songs "Title | Title | ..."` (every

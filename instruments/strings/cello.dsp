@@ -1,4 +1,5 @@
 declare name "Cello";
+declare sound "reverb=0.475 reverbSize=0.245 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "65 880";
 declare ringout "5";
 declare description "Bowed cello, its tone fitted to recordings of a concert soloist. Press to bow: harder is louder and brighter. Slide moves the bow from near the bridge to over the fingerboard. Held notes get a natural vibrato unless you make your own.";

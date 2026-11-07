@@ -1,4 +1,5 @@
 declare name "Accordion";
+declare sound "reverb=0.3 reverbSize=0.3 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "130 1047";
 declare description "Musette accordion: three reeds, two slightly out of tune. Press is the bellows, slide the register from dark to bright.";
 import("stdfaust.lib");

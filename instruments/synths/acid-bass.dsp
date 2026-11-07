@@ -1,4 +1,5 @@
 declare name "Acid Bass";
+declare sound "reverb=0.05 reverbSize=0.245 reverbDamp=0.4 delay=0.2 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "65 523";
 declare description "Squelchy resonant saw bass. Strike for a bigger filter snap, slide for resonance, press to open.";
 import("stdfaust.lib");

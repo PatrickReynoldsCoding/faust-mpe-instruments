@@ -1,4 +1,5 @@
 declare name "Lead";
+declare sound "reverb=0.25 reverbSize=0.35 reverbDamp=0.4 delay=0.12 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "130 1047";
 declare description "Singing mono-style lead. Press to open the filter and drive, slide to blend saw into square.";
 import("stdfaust.lib");

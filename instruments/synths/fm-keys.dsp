@@ -1,4 +1,5 @@
 declare name "FM Keys";
+declare sound "reverb=0.3 reverbSize=0.3 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "65 1047";
 declare ringout "4";
 declare description "FM electric piano. Strike for a bright tine; press into the key to keep it ringing and brighter.";

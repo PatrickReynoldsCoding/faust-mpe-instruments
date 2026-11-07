@@ -1,4 +1,5 @@
 declare name "Trumpet";
+declare sound "reverb=0.35 reverbSize=0.4 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "185 1047";
 declare description "Bright brass. Press to blow harder (the tone gets brassier), slide moves toward a muted sound.";
 import("stdfaust.lib");

@@ -1,4 +1,5 @@
 declare name "Sync Lead";
+declare sound "reverb=0.25 reverbSize=0.35 reverbDamp=0.4 delay=0.12 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "130 1047";
 declare description "Hard-sync lead. Press to sweep the synced oscillator up and make it scream.";
 import("stdfaust.lib");

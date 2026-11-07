@@ -1,4 +1,5 @@
 declare name "Conga";
+declare sound "reverb=0.2 reverbSize=0.3 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "180 700";
 declare ringout "1";
 declare pitched "no";

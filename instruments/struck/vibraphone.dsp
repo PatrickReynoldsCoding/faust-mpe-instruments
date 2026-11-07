@@ -1,4 +1,5 @@
 declare name "Vibraphone";
+declare sound "reverb=0.3 reverbSize=0.3 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "175 1400";
 declare ringout "8";
 declare description "Struck metal bar with a damper: rings while your finger is down, stops when you lift. Press for tremolo.";

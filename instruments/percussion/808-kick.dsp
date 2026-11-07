@@ -1,4 +1,5 @@
 declare name "808 Boom";
+declare sound "reverb=0.2 reverbSize=0.3 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "41 196";
 declare ringout "3";
 declare window "0.1 1.0";

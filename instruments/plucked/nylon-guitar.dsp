@@ -1,4 +1,5 @@
 declare name "Nylon Guitar";
+declare sound "reverb=0.3 reverbSize=0.3 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "98 440";
 declare ringout "8";
 declare description "Plucked nylon string. Slide sets where the string is plucked; it rings after you lift.";

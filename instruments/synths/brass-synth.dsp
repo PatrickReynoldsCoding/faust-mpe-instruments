@@ -1,4 +1,5 @@
 declare name "Brass Synth";
+declare sound "reverb=0.25 reverbSize=0.35 reverbDamp=0.4 delay=0.12 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "82 1047";
 declare description "Analog brass: the filter swells open after the attack. Press for more bite, slide for a brighter horn.";
 import("stdfaust.lib");
