@@ -27,6 +27,29 @@ keeps the fitted numbers (`lib/body_*.lib`, `lib/piano_fit.lib`), never the audi
 Hahn (violin), Yo-Yo Ma (cello), Iowa MIS Steinway B + Kimiko Ishizaka's CC0 *Open Well-Tempered
 Clavier* (piano), see the project memory for the winds, harp and others.
 
+## The Richter piano (piano/richter_*.py)
+
+Fitted to a commercial recording (two albums, lossless, the player's own copies in `refs/richter/`, never
+committed), so unlike the Steinway there are no isolated notes. How it is done:
+
+    richter_notes.py       cut every track into minutes, find strikes (a jump in the whole spectrum), keep the ones where exactly
+                           one key rises, measure what the strike adds (new spectrum minus what was ringing): pitch, stiffness,
+                           partial levels, side of the stereo image, early decay -> refs/richter-piano.npz
+    richter_fit.py select  which tracks and notes are solo piano: stiff-string overtones like the Steinway's (strings are
+                           almost exactly harmonic) and notes that decay (strings and synths hold or swell)
+    richter_fit.py refit   start from the Steinway's tables; render the instrument's own notes, measure them the same way,
+                           move level, hammer, body, tuning and stiffness by the difference (as fit.py does for Iowa)
+    richter_decay.py       scale the string decay times by register to match the early decay
+    richter_stereo.py      left/right balance and coherence by frequency (what `post` in lib/richter.lib reproduces)
+    richter_transcribe.py, richter_render.py, richter_compare.py   a rough transcription of a passage, played through the
+                           instrument and compared with the recording (tone by third-octave band, note match)
+
+What the recordings cannot give: single notes (so the decay after the first half second, the "aftersound", is the
+Steinway's), and a dry piano (the room is part of the numbers; odo's hall is added on top, so keep Room low).
+LAION CLAP was tried to find the solo-piano stretches and to score results: its embeddings were nearly identical for a
+piano passage, another track and white noise (cosine 0.97-0.99), so it was dropped. Treat any earlier "CLAP opinion"
+from `clapcheck.py` with that in mind.
+
 ## Name the sources in the instrument
 
 Every instrument fitted to recordings declares them in its `.dsp`, so they travel with it in the

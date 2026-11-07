@@ -33,7 +33,7 @@ range (the host caps pitch at 5 kHz): use the Octave buttons, or `-t -72` for si
 
     instruments/<group>/<name>.dsp    one sound per file. The folder is the group in the window.
       strings/     violin, cello
-      keys/        piano, rhodes, wurlitzer, clavinet, harpsichord, celesta, toy-piano
+      keys/        piano, max-richter, rhodes, wurlitzer, clavinet, harpsichord, celesta, toy-piano
       organs/      organ, church-organ, accordion, harmonium
       plucked/     nylon-guitar, steel-guitar, electric-guitar, bass-guitar, banjo, harp, dulcimer
       struck/      marimba, vibraphone, kalimba, glockenspiel, xylophone, steel-drum, tubular-bell
@@ -48,6 +48,7 @@ range (the host caps pitch at 5 kHz): use the Octave buttons, or `-t -72` for si
     lib/bowed.lib    shared bowed-string engine (violin, cello)
     lib/body_*.lib   violin and cello bodies, fitted to recordings (generated, see below)
     lib/vocal.lib    shared sung-vowel engine (the voices)
+    lib/richter.lib  the Max Richter piano's engine (a copy of piano.lib with a stereo post); lib/richter_fit.lib its tables (generated)
     lib/fx.lib       effects for an instrument's own `post` stage: rotary, ensemble, cabinet, small room
     lib/synth.lib    plucked-string and struck-bar helpers for the quick sounds
     lib/piano.lib    piano engine; lib/piano_fit.lib its per-key tables (generated, see below)

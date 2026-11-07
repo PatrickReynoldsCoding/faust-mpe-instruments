@@ -1,5 +1,7 @@
 // Offline renderer: plays one note through one instrument, writes raw float32.
 //   render <instrument.so> <out.f32> freq pressure slide velocity [hold_s] [total_s]
+// Mono by default (a stereo `post` is mixed down). With RENDER_STEREO=1 in the environment the
+// file holds left and right, interleaved, twice as long.
 // Drives the instrument exactly as the host does: gate 0 -> 1 on a cleared
 // instrument, controls updated every 64 samples, gate -> 0 after hold_s.
 #include <algorithm>
@@ -46,7 +48,8 @@ int main(int argc, char** argv) {
         for (auto& e : extra) if (FAUSTFLOAT* z = postUI.getParamZone(e.first.c_str())) *z = e.second;
     }
     std::vector<float> pin(blk), pl(blk), pr(blk);
-    std::vector<float> out(n), in(blk, 0.f);
+    const bool stereo = getenv("RENDER_STEREO") != nullptr;
+    std::vector<float> out(n), outR(n), in(blk, 0.f);
     float* ins[1] = { in.data() };
     for (int i = 0; i < n; i += blk) {
         float t = float(i) / sr;
@@ -70,11 +73,17 @@ int main(int argc, char** argv) {
             std::copy(out.begin() + i, out.begin() + i + blk, pin.begin());
             float* pi[1] = { pin.data() }; float* po[2] = { pl.data(), pr.data() };
             post->compute(blk, pi, po);
-            for (int k = 0; k < blk; k++) out[i + k] = post->getNumOutputs() > 1 ? 0.5f * (pl[k] + pr[k]) : pl[k];
-        }
+            for (int k = 0; k < blk; k++) {
+                const float r = post->getNumOutputs() > 1 ? pr[k] : pl[k];
+                outR[i + k] = r;
+                out[i + k] = post->getNumOutputs() > 1 ? 0.5f * (pl[k] + pr[k]) : pl[k];
+                if (stereo) out[i + k] = pl[k];
+            }
+        } else for (int k = 0; k < blk; k++) outR[i + k] = out[i + k];
     }
     FILE* f = fopen(argv[2], "wb");
-    fwrite(out.data(), sizeof(float), n, f);
+    if (stereo) { std::vector<float> il(2 * size_t(n)); for (int k = 0; k < n; k++) { il[2 * k] = out[k]; il[2 * k + 1] = outR[k]; } fwrite(il.data(), sizeof(float), il.size(), f); }
+    else fwrite(out.data(), sizeof(float), n, f);
     fclose(f);
     return 0;
 }

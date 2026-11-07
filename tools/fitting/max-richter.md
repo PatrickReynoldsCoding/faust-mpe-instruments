@@ -1,57 +1,57 @@
-# Max Richter piano: what is in scope
+# Max Richter piano: what was done, and how far to trust it
 
-Status: waiting for the reference files (CD rips, track titles). Nothing built yet.
-Only this instruments repo is touched. Another agent is working on odo.
+`instruments/keys/max-richter.dsp`, "Max Richter". Fitted to commercial recordings (two albums, the owner's own
+copies, lossless; audio stays in `refs/richter/`, git-ignored; only fitted numbers are committed). **Nobody has
+listened to it yet.** Listening files are made by the commands below; judge by ear.
 
-## Adding
+## What it is
 
-- `instruments/keys/max-richter.dsp`: the instrument. Name "Max Richter" (not "Piano 2").
-  One voice per finger, the same six controls as every instrument, no new options for the player.
-  Stereo out of `post` (see below).
-  Declares: `artist`, `songs` (every recording used, ` | ` separated), `reference_licence`,
-  `status "current"`, `sound` (its own effects defaults), `range`, `description`, test hints.
-- The engine is the existing `lib/piano.lib` (stiff strings, felt hammer, soundboard `post`),
-  driven by a second set of fitted tables, `lib/richter_fit.lib` (generated, not hand-edited).
-- A fitting script in `tools/fitting/piano/` (reusing `timbre/analysis.py`): measures the
-  recordings and writes the tables. What is fitted: tone by register (spectral balance), how
-  fast notes decay, hammer softness and its level by loudness, the quiet mechanical noise, and
-  a fixed close-microphone room in `post` (using `lib/fx.lib`).
-- Always-on sympathetic resonance inside the instrument (undamped strings ringing along, like a
-  pedal held about half down), so the recordings' ringing is modelled and not forced into the
-  hammer and decay tables. No control for it. Its CPU cost is measured with the engine bench.
-- Stereo from the soundboard: `post` already may output two channels, and the soundboard is a bank
-  of resonators, so each mode is tapped into left and right with its own weights, as a body
-  radiates. A natural width for headphones, with no engine change.
-- A local `refs/richter/SOURCES.md` listing every track (git-ignored, with the audio).
-  The same titles go in the `songs` declare.
-- `make test` passing for it, plus an A/B report against the recordings
-  (`clapcheck.py` style) saying where it still differs.
-- A short section in `README.md` and this folder's README.
+- The Steinway piano engine (`lib/piano.lib`, copied to `lib/richter.lib`) with its own tables (`lib/richter_fit.lib`).
+- Tuning, stiffness, hammer softness by key and touch, and the body: fitted from 479 single notes in 10 tracks that
+  measure as solo piano (stiff-string overtones like the Steinway's, and decaying), then by comparing 60-second
+  passages (same notes, played through the instrument) with the recordings in third-octave bands.
+- Loudness by key and touch follows the Steinway's. The recordings' own balance across the keyboard is phrasing,
+  room and pedal; matched to it the top octave was unplayably quiet.
+- `post` is stereo and runs once for all notes: the body, two allpass-comb decorrelators (the ears differ by a
+  millisecond or less), a short room tail, and 88 sympathetic-string resonators (the pedal-down ringing).
 
-## Not adding
+## What was measured, honestly
 
-- No audio in the repo: only fitted numbers.
-- No change to the existing `keys/piano.dsp`, `lib/piano_fit.lib`, the cello, violin or any
-  other instrument, and no change to `lib/mpe.lib` (the contract stays `mpe-voice/1`).
-- No per-key pan (it needs the engine to keep voices stereo until `post`: odo and the computer
-  host, the other agent's area). No new pedal control: the existing press-to-hold stays the
-  only pedal. No articulations (not for a piano). Both are in "Room to grow" in odo's
-  `INSTRUMENT_FORMAT.md`.
-- No odo changes: no pack manifest edit, no engine or app code, no release. Until a pack
-  lists it, odo puts it in "More sounds". Putting it in the Classical pack is a one-line
-  change for whoever owns odo.
-- No new instruments, and no improving the legacy sketches.
-- No YouTube downloading unless you give a link and say so. CD rips are preferred.
+- Tone, on four passages the fit never saw, recording minus instrument in third-octave bands 200 Hz-8 kHz:
+  Richter instrument 4.2 dB (median over passages), Steinway 4.7 dB. Per passage 7.8 vs 7.4 dB. That is no clear
+  win in this measure: a passage differs from its recording by about 7 dB whichever piano plays it, because the
+  transcription is rough and the tracks differ from each other (their top end differs by 20 dB or more). What is
+  clear: the recordings are much darker above 2 kHz than the Steinway, and the body now follows that.
+- Stereo: the recordings' ears agree 0.62 on average (coherence, 100 Hz-8 kHz, whole passages), the instrument 0.90
+  (0.7 above 3 kHz, 0.4 at 12 kHz, 0.95+ in the mids). Width is partial: more in the mids needs several
+  milliseconds of smear, not tried without listening. The recordings show no pan by key (the lag between the ears
+  has median 0 in every register), so per-key panning was not built and no engine change was needed.
+- Decay: only 21 notes had a measurable early decay and they disagreed by register; left as the Steinway's.
+- Sympathetic resonance level (-28 dB) and the room tail (-15 dB, 0.9 s) are chosen, not fitted.
+- CPU: one note rendered offline takes 2.1 times the Steinway's (post: 88 resonators, a reverb, two combs). The post is
+  per part, not per note.
+- Sparse registers (below key 45 and above key 90) fall back on the Steinway's tables, weighted by how many Richter
+  notes support them.
 
-## Needed from you
+## Tracks used (the `songs` declare)
 
-1. The CD rips (WAV or FLAC) in `refs/richter/`, tracks where the piano plays alone.
-2. The track titles (and album), for the `songs` list.
-3. Confirmation that using non-open recordings for fitting is fine. The licence declare will
-   say so plainly and the audio stays local.
+Horizon Variations, Shadow Journal, Vladimir's Blues, Old Song, The Trees, Written on the Sky (The Blue Notebooks);
+On the Nature of Daylight (Piano Version), A Catalogue of Afternoons (The Blue Notebooks 20 Year Edition, disc 2);
+While The Flood Rages, The City Was A Chaos (Intro) (While The Flood Rages). Chosen by the measurements above, not
+by listening, so a stretch with something else playing could be in them.
 
-## Limits I expect
+## Reproduce
 
-Finished pieces have no isolated single notes, so the fit describes the sound of this piano
-and room, not every key individually as the Iowa set does for the Steinway. Notes under strings
-or reverb in a track will be skipped or measured less well; solo passages are best.
+    python tools/fitting/piano/richter_notes.py             # measure the notes of every track
+    python tools/fitting/piano/richter_fit.py select|init
+    python tools/fitting/piano/richter_fit.py refit 4        # tables
+    python tools/fitting/piano/richter_tone.py 4             # body, from whole passages
+    python tools/fitting/piano/richter_fit.py anchor         # sparse keys fall back on the Steinway's
+    python tools/fitting/piano/richter_fit.py level          # loudness as the Steinway's
+    python tools/fitting/piano/richter_stereo.py, richter_itd.py   # the stereo measurements
+
+## Not done
+
+No per-key pan, no pedal control (the press-to-hold of the Steinway stays), no articulations, no change to the Steinway
+piano, to `lib/mpe.lib` or to odo's engine. Listening comparisons: `refs/ab/richter/` (recording, Steinway, this,
+same notes, same loudness).
