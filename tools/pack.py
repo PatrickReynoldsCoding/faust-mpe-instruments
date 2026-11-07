@@ -63,6 +63,15 @@ def sound_defaults(packs_dir):
     return out
 
 
+def references(d):
+    """What a fitted instrument was made from: `declare artist`, `songs` (titles separated by " | "),
+    `reference_licence`. None for an instrument that was not fitted to recordings."""
+    songs = [t.strip() for t in d.get("songs", "").split("|") if t.strip()]
+    if not songs and "artist" not in d:
+        return None
+    return {"artist": d.get("artist", ""), "songs": songs, "licence": d.get("reference_licence", "")}
+
+
 def pack(dsp, out_dir, libdir, sounds):
     group = os.path.basename(os.path.dirname(dsp))
     stem = os.path.splitext(os.path.basename(dsp))[0]
@@ -106,6 +115,7 @@ def pack(dsp, out_dir, libdir, sounds):
         "tags": [group],
         "knobs": knobs,
         "sound": sounds.get(old_id, {}),
+        "references": references(d),
         "tests": {k: d[k] for k in ("ringout", "window", "pitched") if k in d},
         "faust": main["version"],
     }

@@ -27,6 +27,16 @@ keeps the fitted numbers (`lib/body_*.lib`, `lib/piano_fit.lib`), never the audi
 Hahn (violin), Yo-Yo Ma (cello), Iowa MIS Steinway B + Kimiko Ishizaka's CC0 *Open Well-Tempered
 Clavier* (piano), see the project memory for the winds, harp and others.
 
+## Name the sources in the instrument
+
+Every instrument fitted to recordings declares them in its `.dsp`, so they travel with it in the
+package manifest (`references`, made by `tools/pack.py`): `declare artist "..."`, `declare songs
+"Title | Title | ..."` listing **every** recording used (not only the main ones), and
+`declare reference_licence "..."` (say plainly if it is not an open licence, for example "own CD,
+audio not distributed"). The instrument is named after the artist when that is what it is
+(`keys/max-richter.dsp`, name "Max Richter"), not "Piano 2". Keep the song list in step with the
+files in `refs/<player>/SOURCES.md`.
+
 ## Fitting a new instrument (the order that worked)
 
 1. Put the recordings in `refs/<player>/` and write `SOURCES.md`.

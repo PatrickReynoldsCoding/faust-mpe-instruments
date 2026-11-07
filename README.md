@@ -79,6 +79,10 @@ Smallest possible instrument:
     mpe = library("mpe.lib");
     process = os.osc(mpe.freq) * mpe.gate * mpe.pressure : si.smooth(0.999) * 0.3;
 
+An instrument fitted to recordings also declares what it was fitted to, and `tools/pack.py` puts it
+in the package manifest as `references`: `artist "Max Richter"`, `songs "Title | Title | ..."` (every
+recording used, titles separated by ` | `) and `reference_licence "..."`.
+
 Optional declarations the tests understand: `ringout "6"` (seconds it may keep ringing),
 `window "0.04 0.4"` (when to judge a short percussive note), `pitched "no"`.
 
