@@ -1,5 +1,6 @@
 declare name "Alto Sax";
 declare sound "reverb=0.35 reverbSize=0.4 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "139 880";
 declare description "Reedy saxophone. Press for volume and growl, slide for the amount of edge.";
 import("stdfaust.lib");

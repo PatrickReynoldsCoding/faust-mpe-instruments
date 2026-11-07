@@ -1,5 +1,6 @@
 declare name "Oboe";
 declare sound "reverb=0.35 reverbSize=0.4 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "233 1568";
 declare description "Double reed: nasal and focused. Press to blow harder (and brighter), slide moves the reed's squeeze.";
 import("stdfaust.lib");

@@ -1,5 +1,6 @@
 declare name "Chip Lead";
 declare sound "reverb=0.25 reverbSize=0.35 reverbDamp=0.4 delay=0.12 brightness=1 drive=0 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "130 1047";
 declare description "8-bit game-console pulse. Slide steps the pulse width 12.5 / 25 / 50 percent; press adds arpeggio-style vibrato.";
 import("stdfaust.lib");

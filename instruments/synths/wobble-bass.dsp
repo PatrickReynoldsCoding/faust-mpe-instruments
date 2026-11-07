@@ -1,5 +1,6 @@
 declare name "Wobble Bass";
 declare sound "reverb=0.05 reverbSize=0.245 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "41 262";
 declare description "Saw bass with a filter that wobbles. Slide sets the wobble speed, press the depth.";
 import("stdfaust.lib");

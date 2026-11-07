@@ -1,5 +1,6 @@
 declare name "Glass Pad";
 declare sound "reverb=0.25 reverbSize=0.35 reverbDamp=0.4 delay=0.12 brightness=1 drive=0 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "65 1047";
 declare description "Airy additive pad of sine partials. Slide brings in the upper partials, press adds shimmer.";
 import("stdfaust.lib");

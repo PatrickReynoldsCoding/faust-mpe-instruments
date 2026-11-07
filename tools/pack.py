@@ -126,6 +126,7 @@ def pack(dsp, out_dir, libdir, sounds):
         "range": rng,
         "channels": channels,
         "post": has_post,
+        "status": d.get("status", "current"),
         "tags": [group],
         "knobs": knobs,
         "sound": dict(sounds.get(old_id, {}), **own_sound(d)),

@@ -1,5 +1,6 @@
 declare name "Harmonica";
 declare sound "reverb=0.35 reverbSize=0.4 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "261 1568";
 declare description "Reed buzz in a small cavity. Press to blow, slide for the cupped-hands wah.";
 import("stdfaust.lib");

@@ -1,5 +1,6 @@
 declare name "Cowbell";
 declare sound "reverb=0.2 reverbSize=0.3 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "400 1568";
 declare ringout "1.5";
 declare pitched "no";

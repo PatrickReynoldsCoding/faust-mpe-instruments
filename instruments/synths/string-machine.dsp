@@ -1,5 +1,6 @@
 declare name "String Machine";
 declare sound "reverb=0.25 reverbSize=0.35 reverbDamp=0.4 delay=0.12 brightness=1 drive=0 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "65 1047";
 declare description "Vintage ensemble strings: detuned saws, slow chorus. Press to brighten, slide for the swell.";
 import("stdfaust.lib");

@@ -102,9 +102,13 @@ note that is out of tune: use it after changing an instrument.
 
 ## Quick sounds
 
+These are marked `declare status "legacy"` (the manifest says `"status": "legacy"`): old sketches,
+kept as they are and not going to be improved. The aim is a few very high quality instruments, fitted
+to recordings: cello, violin and piano first. Nothing else is promised.
+
 Everything except violin, cello and piano (and the flute, clarinet and voices, which are
 model-based) is a quick sketch: simple synthesis, tuned only until `make test` passes
-(in tune, no blow-ups, stops on release). The 44 added in the packs batch were never
+(in tune, no blow-ups, stops on release). The 46 added in the packs batch were never
 listened to or fitted to recordings; expect to retune them by ear. In the Android app they
 are grouped into packs: Classical (cello, piano, violin, the fitted ones) and five more.
 

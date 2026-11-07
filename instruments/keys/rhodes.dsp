@@ -1,5 +1,6 @@
 declare name "Rhodes";
 declare sound "reverb=0.3 reverbSize=0.3 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "65 1047";
 declare ringout "5";
 declare description "Tine electric piano: a bell-like attack that mellows as it rings. Strike harder for bark; slide sets the tremolo.";

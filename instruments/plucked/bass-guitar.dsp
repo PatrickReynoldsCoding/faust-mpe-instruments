@@ -1,5 +1,6 @@
 declare name "Bass Guitar";
 declare sound "reverb=0.3 reverbSize=0.3 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "41 262";
 declare ringout "4";
 declare window "0.05 0.6";

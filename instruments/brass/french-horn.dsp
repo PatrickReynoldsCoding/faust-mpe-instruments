@@ -1,5 +1,6 @@
 declare name "French Horn";
 declare sound "reverb=0.35 reverbSize=0.4 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "87 698";
 declare description "Mellow, distant horn that swells in. Press to brighten, slide for a stopped, brassy edge.";
 import("stdfaust.lib");

@@ -1,5 +1,6 @@
 declare name "Pan Flute";
 declare sound "reverb=0.35 reverbSize=0.4 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "261 1568";
 declare description "Breathy blown pipe. Press to blow, slide for the amount of breath noise.";
 import("stdfaust.lib");

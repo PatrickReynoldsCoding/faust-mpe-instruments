@@ -1,5 +1,6 @@
 declare name "Electric Guitar";
 declare sound "reverb=0.2 reverbSize=0.245 reverbDamp=0.4 delay=0.2 brightness=1 drive=0.2 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "98 440";
 declare ringout "6";
 declare window "0.05 0.6";

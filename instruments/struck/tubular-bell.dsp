@@ -1,5 +1,6 @@
 declare name "Tubular Bell";
 declare sound "reverb=0.55 reverbSize=0.7 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "261 1047";
 declare ringout "9";
 declare pitched "no";

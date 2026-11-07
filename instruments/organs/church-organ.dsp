@@ -1,5 +1,6 @@
 declare name "Church Organ";
 declare sound "reverb=0.6 reverbSize=0.7 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
+declare status "legacy";
 declare range "65 1047";
 declare description "Pipe organ with a breathy chiff. Slide pulls stops (flute, principal, full); the pipes speak slowly and fade with the room.";
 import("stdfaust.lib");
