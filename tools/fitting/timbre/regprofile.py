@@ -37,7 +37,7 @@ def inst_profiles(so, inst, extra, pressure=0.5, K=20):
 
 if __name__ == "__main__":
     inst = sys.argv[1]; args = sys.argv[2:]
-    dsp = os.path.join(E.ROOT, "tools", "timbre", args[args.index("--dsp") + 1]) if "--dsp" in args else os.path.join(E.ROOT, E.CFG[inst]["dsp"])
+    dsp = os.path.join(E.ROOT, "tools", "fitting", "timbre", args[args.index("--dsp") + 1]) if "--dsp" in args else os.path.join(E.ROOT, E.CFG[inst]["dsp"])
     extra = dict((a.split("=")[0], float(a.split("=")[1])) for a in args if "=" in a)
     p = extra.pop("pressure", 0.5)
     so = S.build(dsp)

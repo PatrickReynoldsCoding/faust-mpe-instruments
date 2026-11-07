@@ -2,7 +2,7 @@
 import os, subprocess, tempfile
 import numpy as np
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 SR, BLK = 48000, 64
 LAB = os.path.join(ROOT, "build-lab", "timbre")
 

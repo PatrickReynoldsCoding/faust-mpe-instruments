@@ -58,7 +58,7 @@ def collect(inst, dsp, extra, wet):
 
 if __name__ == "__main__":
     inst = sys.argv[1]; args = sys.argv[2:]
-    dsp = os.path.join("tools", "timbre", args[args.index("--dsp") + 1]) if "--dsp" in args else None
+    dsp = os.path.join("tools", "fitting", "timbre", args[args.index("--dsp") + 1]) if "--dsp" in args else None
     extra = dict((a.split("=")[0], float(a.split("=")[1])) for a in args if "=" in a)
     wet = float(os.environ.get("ROOM_WET", -12))
     Ht, Hd, Hr, f0, idx = collect(inst, dsp, extra, wet)

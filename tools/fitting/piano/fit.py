@@ -28,7 +28,7 @@ import notes                                                             # noqa:
 import body as BODY                                                      # noqa: E402
 import bodyfit as BF                                                     # noqa: E402
 
-ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 REFS = os.path.join(ROOT, "refs")
 PARAMS = os.path.join(REFS, "piano-params.npz")
 LIB = os.path.join(ROOT, "lib", "piano_fit.lib")
@@ -280,7 +280,7 @@ def write_lib(P):
         return f"{name} = waveform{{{', '.join(fmt.format(x) for x in v)}}};"
     grid, db = P["bodyGrid"], P["bodyDb"]
     lines = [
-        "// Piano, fitted to the University of Iowa single notes (Steinway B) by tools/piano/fit.py.",
+        "// Piano, fitted to the University of Iowa single notes (Steinway B) by tools/fitting/piano/fit.py.",
         "// One value per key, A0 (MIDI 21) to C8 (108). Generated: do not edit.",
         'import("stdfaust.lib");',
         wf("stretch", P["stretch"]), wf("apM", P["apM"], "{:.0f}"), wf("apA", P["apA"]),
@@ -295,8 +295,8 @@ def write_lib(P):
 
 
 def body_lib(grid, db, lo=40):
-    """The body as parallel resonators (tools/timbre/bodyfit.py), 0 dB on average over
-    300 Hz - 5 kHz, as tools/timbre/makebody.py does for the strings."""
+    """The body as parallel resonators (tools/fitting/timbre/bodyfit.py), 0 dB on average over
+    300 Hz - 5 kHz, as tools/fitting/timbre/makebody.py does for the strings."""
     pf = np.concatenate([np.geomspace(lo * 0.9, 1500, 36, endpoint=False),
                          np.geomspace(1500, 6000, 18, endpoint=False), np.geomspace(6000, 20000, 10)])
     secs, firt, fr, err, full = BF.design(grid, db, pf, f_lo=lo)

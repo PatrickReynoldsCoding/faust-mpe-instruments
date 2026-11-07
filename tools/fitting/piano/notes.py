@@ -15,7 +15,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "timbre"))
 from analysis import load, SR                                          # noqa: E402
 
-ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 NP = 40                       # partials measured
 FMAX = 16000                  # ... below this
 ENV_HOP = 0.01                # envelope step, s

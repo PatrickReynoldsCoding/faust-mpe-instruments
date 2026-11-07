@@ -49,5 +49,5 @@ def run(inst, dsp, extra):
 
 if __name__ == "__main__":
     inst = sys.argv[1]; args = sys.argv[2:]
-    dsp = os.path.join("tools", "timbre", args[args.index("--dsp") + 1]) if "--dsp" in args else None
+    dsp = os.path.join("tools", "fitting", "timbre", args[args.index("--dsp") + 1]) if "--dsp" in args else None
     run(inst, dsp, dict((a.split("=")[0], float(a.split("=")[1])) for a in args if "=" in a))

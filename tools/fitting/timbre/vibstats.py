@@ -4,7 +4,7 @@ rate and extent wander.   python vibstats.py hahn"""
 import os, sys, pickle, numpy as np
 import analysis as A
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 def main(who):
     ps = pickle.load(open(os.path.join(ROOT, "refs", f"{who}-passages.pkl"), "rb"))

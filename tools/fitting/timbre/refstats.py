@@ -4,7 +4,7 @@ import glob, os, sys, numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import analysis as A
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 RANGES = {"hahn": (180, 3000), "ma": (60, 1100)}
 
 def main(who):

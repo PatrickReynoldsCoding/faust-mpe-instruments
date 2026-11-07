@@ -46,12 +46,12 @@ def apply(inst, pts, corr):
     else:
         new = 0.9 * corr
         src = src.replace("    outGain =", "    levelPoints = (" + ", ".join(f"{f:.1f}" for f in pts) + ");\n"
-                          "    levelDb = (" + ", ".join(f"{v:.1f}" for v in new) + ");     // tools/timbre/levelbal.py\n    outGain =", 1)
+                          "    levelDb = (" + ", ".join(f"{v:.1f}" for v in new) + ");     // tools/fitting/timbre/levelbal.py\n    outGain =", 1)
     open(path, "w").write(src)
     print("updated", path)
 
 if __name__ == "__main__":
     a = sys.argv
-    pts, corr = main(a[1], os.path.join("tools", "timbre", a[a.index("--dsp") + 1]) if "--dsp" in a else None)
+    pts, corr = main(a[1], os.path.join("tools", "fitting", "timbre", a[a.index("--dsp") + 1]) if "--dsp" in a else None)
     if "--apply" in a:
         apply(a[1], pts, corr)

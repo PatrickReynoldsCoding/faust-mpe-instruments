@@ -3,7 +3,7 @@
 # `./phonebench.sh host` build and run it on this machine.
 set -e
 cd "$(dirname "$0")"
-ROOT=../..
+ROOT=../../..
 OUT=$ROOT/build-lab/phonebench; mkdir -p $OUT
 FAUSTINC=$HOME/repos/mpe-instruments-android/engine/third_party/faust/include
 faust -I $ROOT/lib -lang cpp -i -cn Violin -o $OUT/violin.cpp $ROOT/instruments/strings/violin.dsp

@@ -9,7 +9,7 @@ import numpy as np
 import soundfile as sf
 from multiprocessing import Pool
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 SR = 48000
 
 

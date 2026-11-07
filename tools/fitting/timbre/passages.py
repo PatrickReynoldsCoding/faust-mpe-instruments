@@ -4,7 +4,7 @@ split them into notes and cache them: refs/<who>-passages.npz.
 import os, sys, pickle, glob, numpy as np
 import analysis as A, perform as P
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 RANGES = {"hahn": (180, 3000), "ma": (60, 1100)}
 
 def main(who, win=15.0, keep=10):

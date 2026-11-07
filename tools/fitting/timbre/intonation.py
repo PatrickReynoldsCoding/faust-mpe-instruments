@@ -3,7 +3,7 @@ slide positions (steady notes, the instrument's own vibrato averaged out).
    python intonation.py violin [lo hi]"""
 import os, sys, numpy as np
 import synth as S
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 from pitch import cents_off
 ROOT = S.ROOT
 

@@ -11,7 +11,7 @@ instrument is to the recording? Uses the A/B files that `evaluate.py --wav` writ
 import os, sys, glob, numpy as np
 import analysis as A
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 MODEL = "laion/larger_clap_music"
 LABELS = ["a solo violin", "a solo cello", "a solo viola", "a synthesizer", "a pipe organ", "a flute",
           "a singing voice", "an electric guitar"]

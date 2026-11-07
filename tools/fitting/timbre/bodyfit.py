@@ -83,7 +83,7 @@ def response(secs, firt, fr):
 
 def faust(name, secs, firt, comment=""):
     """A Faust function `name` = the filter, as parallel fi.tf2 sections."""
-    lines = [f"// {comment}" if comment else "", f"// {len(secs)} parallel resonators, fitted by tools/timbre/bodyfit.py.",
+    lines = [f"// {comment}" if comment else "", f"// {len(secs)} parallel resonators, fitted by tools/fitting/timbre/bodyfit.py.",
              f"{name} = _ <: ("]
     terms = [f"    fi.tf2({b0:.9g}, {b1:.9g}, 0, {a1:.12g}, {a2:.12g})" for b0, b1, a1, a2 in secs]
     terms.append(f"    *({firt[0]:.9g})")

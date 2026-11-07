@@ -26,7 +26,7 @@ def tilt_slope(H, f0, Hlevel=None):
 
 if __name__ == "__main__":
     inst = sys.argv[1]; args = sys.argv[2:]
-    dsp = os.path.join("tools", "timbre", args[args.index("--dsp") + 1]) if "--dsp" in args else None
+    dsp = os.path.join("tools", "fitting", "timbre", args[args.index("--dsp") + 1]) if "--dsp" in args else None
     extra = dict((a.split("=")[0], float(a.split("=")[1])) for a in args if "=" in a)
     d = diag.collect(inst, dsp, extra, max_passages=int(os.environ.get("EVAL_N", 10)))
     ok = np.isfinite(d["Hs"]).any(1) & (np.nansum(10 ** (d["Hs"] / 10), 1) > 1e-12)

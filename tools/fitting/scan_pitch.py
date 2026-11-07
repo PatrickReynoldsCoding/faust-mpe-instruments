@@ -1,11 +1,12 @@
 """Map where an instrument plays in tune across pitch, pressure and slide.
-   python3 tools/scan_pitch.py strings/cello 65,98,130,196,262,330 "0.2,0.5,0.8" "0.2,0.5,0.8"
+   python3 tools/fitting/scan_pitch.py strings/cello 65,98,130,196,262,330 "0.2,0.5,0.8" "0.2,0.5,0.8"
 Prints cents error per (pressure, slide) for each pitch. '--' = octave or worse off."""
 import os, sys, subprocess, tempfile
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 SR = 48000
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def render(so, f, p, s, v=0.7, hold=1.5, total=2.0):
     with tempfile.NamedTemporaryFile(suffix=".f32") as t:

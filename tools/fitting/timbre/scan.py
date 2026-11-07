@@ -4,7 +4,7 @@
    python scan.py lab/violin-lab.dsp 196,440,880 bowForceMin=0.2,0.5,1,2 bowPosNear=0.04,0.08,0.15 [fixed=..]"""
 import sys, numpy as np
 import analysis as A, synth as S
-sys.path.insert(0, "..")
+sys.path.insert(0, "../..")
 from pitch import cents_off
 
 def grade(x, f):

@@ -1,5 +1,5 @@
 """An outside opinion on the piano: LAION CLAP (music) embeddings of Ishizaka's recordings
-against the same pieces played from MIDI on our instruments (tools/piano/play_midi.py).
+against the same pieces played from MIDI on our instruments (tools/fitting/piano/play_midi.py).
 
    python clapcheck.py keys/piano synths/fm-keys ...     (renders into refs/ab/piano/<tag>/)
 
@@ -14,7 +14,7 @@ import clapcheck as C                                                    # noqa:
 import analysis as A                                                     # noqa: E402
 import play_midi                                                         # noqa: E402
 
-ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 MIDI = os.environ.get("PIANO_MIDI", os.path.join(ROOT, "refs", "wtc-midi"))
 LABELS = ["a grand piano", "an upright piano", "an electric piano", "a harpsichord", "a synthesizer",
           "a music box", "a pipe organ", "a marimba", "a harp", "a toy piano"]

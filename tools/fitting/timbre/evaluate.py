@@ -18,7 +18,7 @@ for makebody.py --apply-diff."""
 import os, sys, pickle, json, numpy as np
 import analysis as A, perform as P, synth as S, body
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 CFG = {
     "violin": dict(who="hahn", fmin=180, fmax=3000, dsp="instruments/strings/violin.dsp", env=(200, 10000),
                    cal=(196, 330, 523, 880, 1400)),
@@ -219,7 +219,7 @@ if __name__ == "__main__":
     dsp = None; extra = {}
     args = sys.argv[2:]
     if "--dsp" in args:
-        dsp = os.path.join("tools", "timbre", args[args.index("--dsp") + 1]);
+        dsp = os.path.join("tools", "fitting", "timbre", args[args.index("--dsp") + 1]);
     extra = dict((a.split("=")[0], float(a.split("=")[1])) for a in args if "=" in a)
     r = run(inst, dsp, extra, wav="--wav" in args, correction="--correction" in args)
     if "--json" in args:
