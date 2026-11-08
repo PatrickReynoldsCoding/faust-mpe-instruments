@@ -1,3 +1,4 @@
+declare version "1.1.0";       // 1.1.0: level evened out with the other sounds (the 1.0.0 is kept in versions/)
 declare name "Cello";
 declare sound "reverb=0.475 reverbSize=0.245 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "65 880";
@@ -15,7 +16,7 @@ bowed = library("bowed.lib")[
     vibRate = 5.9; vibCents = 9; vibDelay = 0.05; vibRateWander = 0.13; vibDepthWander = 0.6;
     levelPoints = (65.4, 91.8, 128.7, 180.6, 253.4, 355.6, 498.9, 700.0);
     levelDb = (6.2, -1.9, 1.6, -4.1, -2.5, -2.3, 2.7, 0.4);     // tools/timbre/levelbal.py
-    outGain = 0.1;
+    outGain = 0.12;                                 // 1.1.0: +1.6 dB, to -20 dBFS with the other sounds
 ];
 
 process = bowed.voice(mpe.freq, mpe.gate, mpe.pressure, mpe.slide, mpe.velocity, mpe.legato);

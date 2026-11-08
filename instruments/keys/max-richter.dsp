@@ -1,3 +1,4 @@
+declare version "1.1.0";       // 1.1.0: level evened out with the other sounds (the 1.0.0 is kept in versions/)
 declare name "Max Richter";
 declare sound "reverb=0.25 reverbSize=0.245 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
 declare artist "Max Richter";
@@ -12,5 +13,5 @@ import("stdfaust.lib");
 mpe = library("mpe.lib");
 piano = library("richter.lib");
 
-process = piano.voice(mpe.freq, mpe.gate, mpe.pressure, mpe.slide, mpe.velocity);
+process = piano.voice(mpe.freq, mpe.gate, mpe.pressure, mpe.slide, mpe.velocity) : *(0.74);   // 1.1.0: -2.6 dB, to -20 dBFS with the other sounds
 post = piano.post;                                  // the soundboard and the ringing strings: once for all notes

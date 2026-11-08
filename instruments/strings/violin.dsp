@@ -1,3 +1,4 @@
+declare version "1.1.0";       // 1.1.0: level evened out with the other sounds (the 1.0.0 is kept in versions/)
 declare name "Violin";
 declare sound "reverb=0.475 reverbSize=0.245 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "196 1760";
@@ -12,7 +13,7 @@ bowed = library("bowed.lib")[
     levelDb = (5.1, -1.2, -2.2, -5.8, -1.4, -3.3, 2.5, 6.3);     // tools/timbre/levelbal.py
     brightLoud = 10;                                // brighter when digging in, as measured
     registerTilt = 3.5; registerRef = 700;          // darker G and D strings (measured)
-    outGain = 0.1;
+    outGain = 0.151;                                // 1.1.0: +3.6 dB, to -20 dBFS with the other sounds
 ];
 
 process = bowed.voice(mpe.freq, mpe.gate, mpe.pressure, mpe.slide, mpe.velocity, mpe.legato);

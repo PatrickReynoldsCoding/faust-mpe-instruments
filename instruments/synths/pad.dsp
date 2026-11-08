@@ -1,3 +1,4 @@
+declare version "1.1.0";       // 1.1.0: level evened out with the other sounds (the 1.0.0 is kept in versions/)
 declare name "Pad";
 declare sound "reverb=0.25 reverbSize=0.35 reverbDamp=0.4 delay=0.12 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "65 1047";
@@ -11,4 +12,5 @@ cutoff = 350 + 5500 * (0.1 + 0.9*mpe.pressure) * (0.35 + 0.65*mpe.slide) : si.sm
 amp    = mpe.gate * (0.4 + 0.6*mpe.pressure) : si.lag_ud(0.35, 0.7);
 tone(spread) = saws(mpe.freq, spread) : fi.lowpass(2, min(cutoff, mpe.freq * 12)) : *(amp);
 
-process = tone(0.004), tone(0.006) : *(0.5), *(0.5);
+level = 0.77;                                       // 1.1.0: +3.7 dB (0.5 before), to -20 dBFS with the other sounds
+process = tone(0.004), tone(0.006) : *(level), *(level);

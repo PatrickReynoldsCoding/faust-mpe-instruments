@@ -52,6 +52,7 @@ range (the host caps pitch at 5 kHz): use the Octave buttons, or `-t -72` for si
     lib/fx.lib       effects for an instrument's own `post` stage: rotary, ensemble, cabinet, small room
     lib/synth.lib    plucked-string and struck-bar helpers for the quick sounds
     lib/piano.lib    piano engine; lib/piano_fit.lib its per-key tables (generated, see below)
+    versions/        older versions kept as they were (<name>@<version>.odoi), to go back to: see below
     src/             mpe-host.cpp (plays instruments), entry.cpp + loader.h (plugin loading),
                      room.dsp (the hall reverb)
     ui/switcher.py   the window (Python + built-in Tk, nothing to install)
@@ -168,3 +169,15 @@ licences are in each folder's `SOURCES.md`.
     python fit.py report              where the instrument still differs, by register
     python clapcheck.py keys/piano    CLAP opinion: our piano playing Ishizaka's pieces from MIDI
     python play_midi.py keys/piano in.mid out.wav --room    play any MIDI file offline
+
+## Versions
+
+An instrument says its version (`declare version "1.1.0"`; none: 1.0.0). Before changing how one
+sounds, keep the version it is now, then raise it:
+
+    tools/pack.py --keep instruments/keys/piano.dsp   # versions/piano@1.0.0.odoi, never overwritten
+    # then edit piano.dsp and raise its `declare version`
+
+odo plays the newest and offers the kept ones under Version in the sound picker, so a change can
+be rolled back by picking the older one (or, for good, by restoring the old .dsp from git).
+

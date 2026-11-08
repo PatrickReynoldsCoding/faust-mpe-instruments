@@ -2,6 +2,7 @@
 """Pack instruments as MESH instrument packages (.odoi), as INSTRUMENT_FORMAT.md describes.
 
     tools/pack.py [-o build/packages] [--sounds packs-dir] [instruments/<group>/<name>.dsp ...]
+    tools/pack.py --keep instruments/<group>/<name>.dsp ...
 
 With no files, packs every instrument. A package is a zip:
 
@@ -13,12 +14,18 @@ The effects an instrument is meant to be heard with are its own: `declare sound 
 --sounds: a folder of odo's pack manifests (assets/packs/*.json), only for an instrument that has
 no `declare sound` (older checkouts).
 A package is only rebuilt when its .dsp or a library it uses is newer.
+
+Old versions (INSTRUMENT_FORMAT.md, "Versions sit side by side"): versions/<name>@<version>.odoi are
+packages kept as they were, so a sound can be played as it was, or a change rolled back. They are
+copied beside the new packages. Before changing how an instrument sounds, keep the version it is
+now (--keep), then raise its `declare version`.
 """
 import argparse
 import glob
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -145,10 +152,44 @@ def pack(dsp, out_dir, libdir, sounds):
     return target, True
 
 
+VERSIONS = os.path.join(HERE, "versions")
+
+
+def keep(dsp, libdir, sounds):
+    """Pack the instrument as it is now into versions/<name>@<version>.odoi, never over one kept before."""
+    with tempfile.TemporaryDirectory() as t:
+        made, _ = pack(dsp, t, libdir, sounds)
+        with zipfile.ZipFile(made) as z:
+            m = json.loads(z.read("instrument.json"))
+        stem = os.path.splitext(os.path.basename(dsp))[0]
+        target = os.path.join(VERSIONS, f"{stem}@{m['version']}.odoi")
+        if os.path.exists(target):
+            sys.exit(f"{target} is kept already: raise the instrument's `declare version` first")
+        os.makedirs(VERSIONS, exist_ok=True)
+        shutil.copyfile(made, target)
+        return target
+
+
+def copy_kept(out_dir, current):
+    """versions/*.odoi beside the new packages; one that is the version an instrument is now is left out."""
+    n = 0
+    for f in sorted(glob.glob(os.path.join(VERSIONS, "*.odoi"))):
+        name = os.path.basename(f)
+        stem, _, ver = name[:-len(".odoi")].partition("@")
+        if current.get(stem) == ver:
+            continue
+        target = os.path.join(out_dir, name)
+        if not os.path.exists(target) or os.path.getmtime(target) < os.path.getmtime(f):
+            shutil.copyfile(f, target)
+        n += 1
+    return n
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("-o", "--out", default=os.path.join(HERE, "build", "packages"))
     ap.add_argument("--sounds", help="folder of odo's pack manifests (assets/packs)")
+    ap.add_argument("--keep", action="store_true", help="keep the named instruments' versions now in versions/")
     ap.add_argument("dsp", nargs="*")
     a = ap.parse_args()
     files = a.dsp or sorted(glob.glob(os.path.join(HERE, "instruments", "*", "*.dsp")))
@@ -157,11 +198,21 @@ def main():
     dup = {s for s in stems if stems.count(s) > 1}
     if dup:
         sys.exit(f"two instruments share a name: {sorted(dup)} (their ids would clash)")
+    if a.keep:
+        if not a.dsp:
+            sys.exit("--keep: name the instruments to keep")
+        for f in files:
+            print("kept", keep(f, os.path.join(HERE, "lib"), sounds))
+        return
     made = 0
+    current = {}
     for f in files:
-        _, new = pack(f, a.out, os.path.join(HERE, "lib"), sounds)
+        target, new = pack(f, a.out, os.path.join(HERE, "lib"), sounds)
         made += new
-    print(f"{len(files)} packages in {a.out} ({made} rebuilt)")
+        with zipfile.ZipFile(target) as z:
+            current[os.path.splitext(os.path.basename(f))[0]] = json.loads(z.read("instrument.json"))["version"]
+    old = copy_kept(a.out, current) if not a.dsp else 0
+    print(f"{len(files)} packages in {a.out} ({made} rebuilt){f', {old} older versions' if old else ''}")
 
 
 if __name__ == "__main__":
