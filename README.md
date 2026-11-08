@@ -179,5 +179,6 @@ sounds, keep the version it is now, then raise it:
     # then edit piano.dsp and raise its `declare version`
 
 odo plays the newest and offers the kept ones under Version in the sound picker, so a change can
-be rolled back by picking the older one (or, for good, by restoring the old .dsp from git).
+be rolled back by picking the older one (or, for good, by restoring the old .dsp from git). How it
+works end to end: odo's docs/formats/INSTRUMENT_FORMAT.md, "Versions sit side by side".
 

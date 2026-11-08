@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pack instruments as MESH instrument packages (.odoi), as INSTRUMENT_FORMAT.md describes.
+"""Pack instruments as MESH instrument packages (.odoi), as odo's docs/formats/INSTRUMENT_FORMAT.md describes.
 
     tools/pack.py [-o build/packages] [--sounds packs-dir] [instruments/<group>/<name>.dsp ...]
     tools/pack.py --keep instruments/<group>/<name>.dsp ...
@@ -15,7 +15,7 @@ The effects an instrument is meant to be heard with are its own: `declare sound 
 no `declare sound` (older checkouts).
 A package is only rebuilt when its .dsp or a library it uses is newer.
 
-Old versions (INSTRUMENT_FORMAT.md, "Versions sit side by side"): versions/<name>@<version>.odoi are
+Old versions (odo's docs/formats/INSTRUMENT_FORMAT.md, "Versions sit side by side"): versions/<name>@<version>.odoi are
 packages kept as they were, so a sound can be played as it was, or a change rolled back. They are
 copied beside the new packages. Before changing how an instrument sounds, keep the version it is
 now (--keep), then raise its `declare version`.
