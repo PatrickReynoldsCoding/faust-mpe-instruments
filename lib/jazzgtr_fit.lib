@@ -1,0 +1,4 @@
+// Jazz guitar body: gains (dB) of the 24 third-octave bands from 63 Hz (upright_string.lib's body),
+// and the output level. Written by tools/fitting/seaboard/plucked/fit.py; do not edit by hand.
+eq = (-15.52,-12.13,-10.90,-13.72,-16.67,-16.92,-12.67,-9.36,-13.33,-17.83,-17.99,-16.80,-20.76,-23.17,-20.71,-17.32,-11.76,-8.99,-8.22,-6.83,-3.60,0.13,0.48,-2.45);
+out = 62.154;

@@ -1,0 +1,44 @@
+// A plucked string for the upright bass and the jazz guitar: one waveguide loop (a fractional delay,
+// a one-pole lowpass and a gain), tuned exactly (the lowpass's phase delay at the fundamental is
+// taken off the delay), so it bends and glides smoothly. Shared by upright-bass.dsp and
+// jazz-guitar.dsp; the numbers that make each one come from the instrument.
+import("stdfaust.lib");
+
+// f: Hz (the raw control: everything costly is worked out once a block from it, then smoothed).
+// While held: dh dB per second at the fundamental, ah the loop lowpass (0 = no extra loss for the
+// high partials, 0.9 = very dull); lifted: dr, ar. held: 0..1, smoothed gate. t: the note's
+// trigger (the smoothing jumps there, so a note starts on its pitch). ex: the excitation.
+string(t, f, dh, ah, dr, ar, held, ex) = ex : (+ ~ (de.fdelay4(4096, len) : lp : *(g)))
+with {
+    w      = 2 * ma.PI * f / ma.SR;
+    pd(a)  = atan(a * sin(w) / (1 - a * cos(w))) / w;   // the lowpass's delay at f, samples
+    gain(d) = min(0.99995, ba.db2linear(-d / f));
+    mix(x, y) = x * held + y * (1 - held);
+    a      = mix(ah : smoo(t), ar);
+    len    = max(1.5, ma.SR / f - 1 - mix(pd(ah), pd(ar))) : smoo(t);
+    g      = mix(gain(dh) : smoo(t), gain(dr));
+    lp     = *(1 - a) : + ~ *(a);
+};
+
+// si.smoo (about 20 ms), except that it starts where it is going when t is 1 (a note starting
+// on a cleared voice would otherwise glide up from nothing).
+smoo(t, x) = x : (step ~ _) with { step(y, xin) = select2(t, xin * 0.001 + y * 0.999, xin); };
+
+// Third-octave peaking bands (Q 2.2) from f1 with these gains (dB): the body.
+// (RBJ peaking biquads, the same formula tools/fitting/seaboard/plucked/fit.py fits with.)
+body(f1, gains) = seq(i, outputs(gains), peq(ba.take(i + 1, gains), f1 * 2 ^ (i / 3)))
+with {
+    peq(gdb, fc) = fi.tf2(b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0)
+    with {
+        A  = 10 ^ (gdb / 40);
+        w  = 2 * ma.PI * min(fc, 0.45 * ma.SR) / ma.SR;
+        al = sin(w) / (2 * 2.2);
+        b0 = 1 + al * A; b1 = -2 * cos(w); b2 = 1 - al * A;
+        a0 = 1 + al / A; a1 = -2 * cos(w); a2 = 1 - al / A;
+    };
+};
+
+// A signal far below hearing (1e-15, flipping every sample) added where a filter would otherwise
+// decay into denormal numbers, which are many times slower on most CPUs when the build does not
+// flush them to zero. It passes the high-passes that a constant would not.
+nodenormal = +(1e-15 * (ba.time % 2 * 2 - 1));

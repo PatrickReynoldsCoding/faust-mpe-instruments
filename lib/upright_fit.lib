@@ -1,0 +1,4 @@
+// Upright bass body: gains (dB) of the 24 third-octave bands from 25 Hz (upright_string.lib's body),
+// and the output level. Written by tools/fitting/seaboard/plucked/fit.py; do not edit by hand.
+eq = (1.51,1.07,2.28,3.59,4.24,3.66,1.09,-3.59,-6.96,-6.47,-5.53,-5.27,-6.65,-8.68,-9.11,-9.81,-10.36,-9.98,-7.83,-6.34,-7.44,-9.81,-12.03,-14.50);
+out = 31.912;
