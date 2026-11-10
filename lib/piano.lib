@@ -7,13 +7,19 @@
 //     tuned a hair apart they beat gently, like the two or three strings of a real note.
 //   - The hammer is a half-sine push. A harder blow is shorter (brighter) and louder. It
 //     strikes about an eighth of the way along the string, which notches those overtones.
+//     On top of it, the felt's hard core: a short spike that grows faster than the blow
+//     (soft = dark, hard = bright), carrying the upper partials up to about 5 kHz (1.2.0).
 //   - On release the damper stops the note (the top keys have no dampers, as on a grand),
 //     unless the finger was pressing firmly as it lifted: that is the sustain pedal for
 //     that note, and a medium press gives a half pedal.
 //   - Slide is the una corda: low on the key is softer and veiled, high is a harder, brighter blow.
-//   - The soundboard is a bank of resonators shared by all notes (`post`).
+//   - The soundboard is a bank of resonators shared by all notes (`post`), then a tone
+//     correction (1.2.0).
 // Every number that varies over the keyboard comes from lib/piano_fit.lib, fitted to
-// recordings of single notes by tools/piano/fit.py.
+// recordings of single notes by tools/piano/fit.py. The 1.2.0 hard core, loss and tone
+// correction (below) were fitted to the Equator "Acoustic Piano" of ROLI's Seaboard RISE
+// demo (third-octave bands of its left-hand chords, played by takes/seaboard-rise-piano-viola):
+// the Steinway fit alone was 20-30 dB short above 2 kHz, mid-heavy and light in the bass.
 import("stdfaust.lib");
 fit = library("piano_fit.lib");
 
@@ -23,6 +29,14 @@ detune = 0.7;                     // cents between the two loops
 undamped = 89;                    // MIDI note from which keys have no damper (F6 up)
 pedalLo = 0.72; pedalHi = 0.9;    // pressure at release: no pedal .. full pedal
 knockDb = -32;                    // the hammer's knock on the soundboard, against the note
+// 1.2.0: the hard core of the hammer (see the voice), the string's loss and the tone.
+hardMs = 0.1;                     // the spike's length (flat to well past 5 kHz)
+hardDb = -3;                      // its level at velocity 0.9, against the blow's peak force
+hardK = 2.5;                      // it grows as velocity^hardK: soft blows are darker
+hardOct = 10;                     // dB less per octave above A#3 (the middle is dark in the fit, the top bright already)
+hardHz = 1500;                    // above this it falls 6 dB/oct (at velocity 0.9; an octave and a half lower per unit softer)
+hardTop = 5500;                   // and above this, steeply (4th order); both rise with the key above C5
+lossScale = 0.6;                  // the loops' loss filters, softened: upper partials ring on a little longer
 
 // A value from a per-key table, linearly between keys.
 tab(w, key) = rd(i) * (1 - fr) + rd(min(i + 1, 87)) * fr
@@ -76,7 +90,19 @@ with {
     lvl = bydyn(v, T(fit.lvPP), T(fit.lvMF), T(fit.lvFF)) - max(0, 0.5 - una) * 6;
     amp = ba.db2linear(lvl) / max(1, nth / 16);      // a longer blow puts in the same peak force, not more energy
     beta = ba.if(key < 70, 0.122 - (key - 21) * 0.004 / 49, 0.118 - (key - 70) * 0.058 / 38);
-    strike = pulse * amp <: _, de.fdelay(MAXD, beta * ma.SR / f0) : - : fi.lowpass(1, feltHz);
+    // the felt's hard core (1.2.0): a 0.1 ms spike in proportion to the blow's peak force,
+    // above the note's lowest partials (so the fitted level and fundamental stay as they were)
+    nh = hardMs * 0.001 * ma.SR;
+    spike = ba.if(since < nh, sin(ma.PI * since / nh), 0);
+    hr = ba.db2linear(hardDb - hardOct * max(0, key - 58) / 12) * pow(v / 0.9, hardK) * (1 - unaSoft);
+    up = pow(2, max(0, key - 72) / 12);
+    hard = spike * amp * (0.001 * ma.SR) / nh * hr
+        : fi.highpass(2, max(150, 3 * f0))
+        : fi.lowpass(1, min(18000, hardHz * up * pow(2, (v - 0.9) * 1.5)))
+        : fi.lowpass(4, min(18000, hardTop * up));
+    // less of the middle in the bass and tenor (the Steinway fit's 0.6-2 kHz hump), none from F#4 up
+    strike = pulse * amp + hard <: _, de.fdelay(MAXD, beta * ma.SR / f0) : - : fi.lowpass(1, feltHz)
+        : eqPeak(950, -6 * max(0, min(1, (66 - key) / 12)), 0.5);
     knock = no.noise * en.ar(0.0003, 0.012, trig) * amp * ba.db2linear(knockDb) * 16 : fi.lowpass(2, min(6000, 4 * f0 + 600));
 
     // dampers and pedal
@@ -88,13 +114,34 @@ with {
     M = T(fit.apM) + 0.5 : int;
     a = T(fit.apA);
     after = ba.db2linear(T(fit.after)) * (1 + unaSoft * 0.75);   // the unstruck string still rings with the others
-    s1 = strike : string(f0 * pow(2, -0.5 * detune / 1200), M, a, T(fit.t1), T(fit.p1), damp);
-    s2 = strike * after : string(f0 * pow(2, 0.5 * detune / 1200), M, a, T(fit.t2), T(fit.p2), damp);
+    s1 = strike : string(f0 * pow(2, -0.5 * detune / 1200), M, a, T(fit.t1), T(fit.p1) * lossScale, damp);
+    s2 = strike * after : string(f0 * pow(2, 0.5 * detune / 1200), M, a, T(fit.t2), T(fit.p2) * lossScale, damp);
     out = (s1 + s2 + knock) * ba.db2linear(fit.gainDb);
 };
 
-// The soundboard, once for all the notes.
-post = fit.body;
+// The soundboard, once for all the notes, then the tone (1.2.0): more fundamental in the bass,
+// less at 200 Hz, the soundboard fit's dip at 4-8 kHz filled, and its rising top (above 9 kHz) cut.
+post = fit.body : eqLow(160, 8) : eqPeak(205, -5, 2) : eqPeak(6200, 5, 1) : eqHigh(9000, -12);
+
+// Equalisers (RBJ cookbook biquads): f Hz, g dB, q; the shelves have slope q 0.7.
+eqPeak(f, g, q) = fi.tf2(b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0)
+with {
+    A = pow(10, g / 40); w = 2 * ma.PI * f / ma.SR; al = sin(w) / (2 * q);
+    b0 = 1 + al * A; b1 = -2 * cos(w); b2 = 1 - al * A;
+    a0 = 1 + al / A; a1 = -2 * cos(w); a2 = 1 - al / A;
+};
+eqLow(f, g) = fi.tf2(b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0)
+with {
+    A = pow(10, g / 40); w = 2 * ma.PI * f / ma.SR; c = cos(w); sq = sqrt(A) * sin(w) / 0.7;
+    b0 = A * ((A + 1) - (A - 1) * c + sq); b1 = 2 * A * ((A - 1) - (A + 1) * c); b2 = A * ((A + 1) - (A - 1) * c - sq);
+    a0 = (A + 1) + (A - 1) * c + sq; a1 = -2 * ((A - 1) + (A + 1) * c); a2 = (A + 1) + (A - 1) * c - sq;
+};
+eqHigh(f, g) = fi.tf2(b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0)
+with {
+    A = pow(10, g / 40); w = 2 * ma.PI * f / ma.SR; c = cos(w); sq = sqrt(A) * sin(w) / 0.7;
+    b0 = A * ((A + 1) + (A - 1) * c + sq); b1 = -2 * A * ((A - 1) + (A + 1) * c); b2 = A * ((A + 1) + (A - 1) * c - sq);
+    a0 = (A + 1) - (A - 1) * c + sq; a1 = 2 * ((A - 1) - (A + 1) * c); a2 = (A + 1) - (A - 1) * c - sq;
+};
 
 // One note with its own soundboard, for tools that play a single note without a host.
 solo(freq, gate, pressure, slide, velocity) = voice(freq, gate, pressure, slide, velocity) : post;
