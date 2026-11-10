@@ -1,0 +1,8 @@
+// Oboe body: gains (dB) of reed_engine.body's 24 third-octave bands from 100 Hz, and the
+// output level. Written by tools/fitting/seaboard/reeds/fit.py; do not edit by hand.
+eq = (-0.58,-1.59,-2.57,-3.46,-4.20,-4.69,-4.84,-4.51,-3.47,-1.50,1.41,4.79,7.13,6.20,4.26,2.73,1.65,0.89,0.48,0.31,0.28,0.33,0.41,0.51);
+out = -0.335;
+lo = 3.000;
+hi = 9.000;
+reg = 0.300;
+lvl = 0.556;

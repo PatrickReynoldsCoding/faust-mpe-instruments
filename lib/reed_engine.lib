@@ -1,0 +1,86 @@
+// Shared engine for the fitted reeds (clarinet, oboe, tenor sax): a source-filter model.
+//
+// Per voice (cheap): a band-limited reed source. Two polyBLEP saws half a period apart give any
+// balance of odd and even harmonics (`odd` 0 = all harmonics, a conical bore: oboe, sax; near 1 =
+// odd ones only, a cylinder: the clarinet's low register). Breath (pressure) drives how many
+// harmonics come through (a reed brightens as it is blown harder), plus breath noise that pulses
+// with the reed, a tongued attack (a short noise "t", brightness arriving after the level) or,
+// for a slur (`legato`), a soft quick join with no tongue. A held note is never static: slow
+// pitch and breath wander, a different random stream for every pitch.
+//
+// Shared by all voices (`post`): the instrument's body, 24 peaking filters a third of an octave
+// apart, their gains fitted to the reference recordings (lib/<inst>_fit.lib).
+//
+// Tools: tools/fitting/seaboard/reeds/.
+import("stdfaust.lib");
+mpe = library("mpe.lib");
+
+// -- random ---------------------------------------------------------------------------------
+// White noise, -1..1. The step depends on the pitch so that voices of a chord differ.
+rnd(seed) = (+(12345 + seed + int(mpe.freq * 977.0)) : *(1103515245)) ~ _ : /(2147483647.0);
+// A slow random wander of about `hz`, roughly -1..1.
+// (Two one-pole smoothers: a 2nd-order filter this low is unstable in single precision.)
+wander(hz, seed) = rnd(seed) : si.smooth(p) : si.smooth(p) : *(2 / sqrt(1 - p))
+with { p = exp(-2 * ma.PI * hz / ma.SR); };
+
+// -- source ---------------------------------------------------------------------------------
+phasor(f) = (+(f / ma.SR) : ma.frac) ~ _;
+blep(t, dt) = ba.if(t < dt, 2 * u - u * u - 1, ba.if(t > 1 - dt, v * v + 2 * v + 1, 0))
+with { u = t / max(dt, 1e-6); v = (t - 1) / max(dt, 1e-6); };
+blsaw(p, dt) = 2 * p - 1 - blep(p, dt);
+// Harmonics k: even ones scaled by (1 - odd), odd ones by (1 + odd).
+source(f, odd) = blsaw(p, dt) - odd * blsaw(ma.frac(p + 0.5), dt)
+with { dt = min(f / ma.SR, 0.45); p = phasor(f); };
+
+// -- one voice ------------------------------------------------------------------------------
+// f        pitch, Hz (bends already in)
+// odd      odd/even balance (see source), may follow the pitch
+// lo, hi   brightness: the source's cutoff, in harmonics, at no breath and at full breath
+// slideB   how much slide adds to brightness (slide 0.5 = none)
+// noise    breath-noise level; ncent, nq: its centre (Hz) and Q
+// tongue   level of the tongued "t"
+// growl    roughness amount 0..1 (an AM at ~30 Hz plus drive), driven by the instrument
+// drv      how hard the source drives its saturation (adds odd harmonics as it grows)
+voice(f, odd, lo, hi, slideB, noise, ncent, nq, tongue, growl, drv) = out
+with {
+    g      = mpe.gate;
+    leg    = mpe.legato;
+    vel    = mpe.velocity;
+    // breath: the pressure, a little floor so a touch always speaks, lagged like air
+    press  = max(mpe.pressure, 0.04) : si.lag_ud(0.012, 0.05);
+    // the attack: tongued (30 ms, quicker when struck hard) or slurred (12 ms)
+    att    = ba.if(leg > 0.5, 0.015, 0.03 - 0.02 * vel);
+    env    = en.asr(att, 1, 0.1, g);
+    // brightness arrives after the level on a tongued attack
+    benv   = g : si.lag_ud(ba.if(leg > 0.5, 0.01, att * 1.6), 0.05);
+    wob    = 1 + 0.035 * wander(1.3, 7) + 0.02 * wander(6.0, 11);          // breath unsteadiness
+    b      = press * wob;
+    fdrift = f * (1 + 0.0016 * wander(0.6, 3) + 0.0005 * wander(4, 9));      // ~2.5 cents rms, as SWAM held notes
+    sl     = mpe.slide : si.smooth(ba.tau2pole(0.03));
+    bf     = 1 + slideB * (sl - 0.5) * 2;                                  // slide's brightness
+    nh     = (lo + (hi - lo) * pow(b, 1.5)) * bf * (0.45 + 0.55 * benv);
+    fc     = min(fdrift * nh, 16000);
+    src    = source(fdrift, odd) : fi.lowpass(2, fc) : fi.lowpass(1, min(fc * 2.5, 18000));
+    gr     = growl * (0.5 + 0.5 * b);
+    rough  = 1 - gr * 0.45 * (1 + os.osc(27 + 6 * wander(2, 5)) * (0.8 + 0.2 * rnd(13)));
+    gd     = drv * (1 + 1.5 * gr);                                         // growl drives harder
+    tone   = (src * gd : ma.tanh) / (drv * pow(1 + 1.5 * gr, 0.8)) * rough * pow(bf, -1.2);   // brighter, not louder
+    level  = pow(b, 1.35);
+    // breath noise pulses with the reed's opening
+    puls   = 0.55 + 0.45 * (source(fdrift, 0) : fi.lowpass(1, fdrift * 2) : abs);
+    breath = rnd(17) : fi.resonbp(ncent, nq, 1) : *(noise * (0.25 + 0.75 * b) * puls);
+    tng    = rnd(23) : fi.resonbp(2800, 1.2, 1) : *(tongue * vel * level * (1 - leg) * en.ar(0.001, 0.02, mpe.trigger));
+    out    = (tone * level + breath * level + tng) * env;
+};
+
+// -- body (post) ----------------------------------------------------------------------------
+// 24 RBJ peaking filters, a third of an octave apart from 100 Hz, Q 2.2, gains in dB.
+NB = 24;
+bandHz(i) = 100 * pow(2, i / 3);
+peq(gdb, fc, q) = fi.tf2(b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0)
+with {
+    A = pow(10, gdb / 40); w = 2 * ma.PI * fc / ma.SR; al = sin(w) / (2 * q);
+    b0 = 1 + al * A; b1 = -2 * cos(w); b2 = 1 - al * A;
+    a0 = 1 + al / A; a1 = -2 * cos(w); a2 = 1 - al / A;
+};
+body(gains, out) = seq(i, NB, peq(ba.take(i + 1, gains), bandHz(i), 2.2)) : *(ba.db2linear(out));

@@ -1,15 +1,18 @@
 declare name "Oboe";
-declare sound "reverb=0.35 reverbSize=0.4 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
-declare status "legacy";
+declare version "2.0.0";
+declare sound "reverb=0.3 reverbSize=0.5 reverbDamp=0.45 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "233 1568";
-declare description "Double reed: nasal and focused. Press to blow harder (and brighter), slide moves the reed's squeeze.";
+declare description "Oboe fitted to SWAM's on a Seaboard: a double reed, nasal and focused, its strongest harmonics around 1.2-2 kHz. Press to blow: soft and sweet to loud and penetrating. Slide moves the reed's squeeze: down darker, up brighter. Slurred notes join without a new tongued attack.";
+declare artist "ROLI Seaboard demos (SWAM oboe)";
+declare songs "Seaboard RISE x SWAM & Camelot Pro (ROLI, performed by Heen-Wah Wai), 0:17-0:46, SWAM oboe in a cello | clarinet | oboe split";
+declare reference_licence "ROLI's YouTube demos, all rights reserved: audio not distributed, only fitted numbers";
 import("stdfaust.lib");
 mpe = library("mpe.lib");
+reed = library("reed_engine.lib");
+fit = library("oboe_fit.lib");
 
-vib   = 1 + 0.004 * (0.3 + 0.7 * mpe.pressure) * os.osc(5.4) * en.asr(0.3, 1, 0.1, mpe.gate);
-reed  = os.sawtooth(mpe.freq * vib);
-form  = reed <: (fi.resonbp(1100, 3, 1), fi.resonbp(2800, 4, 1), _ * 0.15) :> _;
-breath = no.noise : fi.resonbp(min(mpe.freq * 2, 6000), 2, 1) * 0.03;
-amp   = mpe.gate * (0.4 + 0.6 * mpe.pressure) : si.lag_ud(0.04, 0.07);
+f      = mpe.freq;
+regs   = pow(f / 330, 0 - fit.reg);
 
-process = (form * (0.5 + 0.5 * mpe.slide) + reed * 0.1 + breath) * amp * 0.45;
+process = reed.voice(f, 0.03, fit.lo * regs, fit.hi * regs, 0.4, 0.022, 2600, 0.8, 0.5, 0, 0.6) * 0.5 * pow(mpe.freq / 440, 0 - fit.lvl);   // level across the range, fitted
+post = reed.body(fit.eq, fit.out);

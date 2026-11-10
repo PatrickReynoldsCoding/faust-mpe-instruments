@@ -1,0 +1,8 @@
+// Clarinet body: gains (dB) of reed_engine.body's 24 third-octave bands from 100 Hz, and the
+// output level. Written by tools/fitting/seaboard/reeds/fit.py; do not edit by hand.
+eq = (-0.47,-2.89,-5.26,-7.27,-8.32,-7.72,-5.31,-1.65,1.49,2.50,1.29,-1.83,-0.60,6.72,8.70,7.50,6.86,5.33,3.44,1.65,0.22,-0.79,-1.51,-2.08);
+out = 4.337;
+lo = 1.400;
+hi = 4.500;
+reg = 0.300;
+lvl = 0.590;
