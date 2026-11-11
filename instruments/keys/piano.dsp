@@ -1,4 +1,4 @@
-declare version "1.2.0";       // 1.2.0: a harder, brighter hammer and a fuller bass, after the Equator piano in ROLI's RISE demo; 1.1.0: level evened out (1.0.0 and 1.1.0 are kept in versions/)
+declare version "1.2.1";       // 1.2.1: 2.3 dB quieter, level with the other sounds; 1.2.0: a harder, brighter hammer and a fuller bass, after the Equator piano in ROLI's RISE demo; 1.1.0: level evened out (1.0.0 and 1.1.0 are kept in versions/)
 declare name "Piano";
 declare sound "reverb=0.475 reverbSize=0.245 reverbDamp=0.4 delay=0 brightness=1 drive=0 pressureCurve=1 release=0";
 declare range "27.5 4186";
@@ -12,5 +12,5 @@ import("stdfaust.lib");
 mpe = library("mpe.lib");
 piano = library("piano.lib");
 
-process = piano.voice(mpe.freq, mpe.gate, mpe.pressure, mpe.slide, mpe.velocity) : *(0.71);   // 1.1.0: -3 dB, to -20 dBFS with the other sounds
+process = piano.voice(mpe.freq, mpe.gate, mpe.pressure, mpe.slide, mpe.velocity) : *(0.545);   // 1.1.0: -3 dB, to -20 dBFS with the other sounds; 1.2.0: -2.3 dB more (its brighter, hotter middle)
 post = piano.post;                                  // the soundboard: once for all notes
